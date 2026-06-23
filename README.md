@@ -1,0 +1,220 @@
+# ⏱️ Bizneo Companion
+
+[![Platform: macOS 13+](https://img.shields.io/badge/platform-macOS%2013%2B-black?logo=apple)](https://www.apple.com/macos/)
+[![Swift 5.9](https://img.shields.io/badge/Swift-5.9-F05138?logo=swift&logoColor=white)](https://swift.org)
+[![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey)](LICENSE)
+
+**Your Bizneo time balance, live in the macOS menu bar — with one‑click clock in/out.**
+
+Stop opening Bizneo a dozen times a day to check whether you're ahead or behind.
+Bizneo Companion puts your running time balance right in the menu bar and lets you
+**check in, take a break, resume, and check out** without leaving what you're doing.
+
+> Unofficial, community‑built helper for [Bizneo HR](https://www.bizneo.com/)
+> time tracking (*control horario / fichaje / registro de jornada*). Not affiliated
+> with Bizneo.
+
+<!-- TODO: replace with a real screenshot or GIF (see docs/) -->
+<!-- ![Bizneo Companion in the menu bar](docs/screenshot.png) -->
+
+```text
+        ●  −0:29          ← menu bar (red = behind · green = ahead)
+        ╰───────────────────────────────╮
+          Bizneo Companion              │
+          ─────────────────────────────  │
+          🔴 Today        missing 0:29   │
+          🟢 This week    ahead   2:11   │
+          🔴 This month   missing 1:01   │  (official −8:21, +7:20 pending)
+          🟢 This year    ahead  14:30   │
+          ─────────────────────────────  │
+          🟢 Working (telework) · 09:48  │
+             Take break                  │
+             Check out…                  │
+          ─────────────────────────────  │
+          Pending changes (2)         ▸  │
+          ─────────────────────────────  │
+          Refresh now · Edit config · Quit
+        ╰───────────────────────────────╯
+```
+
+## Why you'll like it
+
+- 👀 **Always visible** — your balance sits in the menu bar; glance instead of logging in.
+- ➕ **Counts what's pending** — unapproved time‑edit requests are folded in, so the
+  number matches reality, not just what's been approved.
+- 🟢 **Net ahead/behind at a glance** — the bar shows your **cumulative week** by
+  default (green when you've banked extra, red when you owe time).
+- 🕒 **Clock in/out from the menu** — check in (with project), break, resume, check out.
+- 🏖️ **Knows your days off** — company free Fridays ("Fridom") don't get counted as
+  missing time.
+- 🔐 **No password, no API token** — reuses your existing Chrome session, all locally.
+
+## Features
+
+| | |
+|---|---|
+| 📊 **Today / week / month / year** | Running balance for each period, pending‑aware |
+| ⏯️ **Clock controls** | Check in · Take break · Resume · Check out (with confirm) |
+| 🗂️ **Project picker** | Check in to a project; remembers your last one |
+| 🏠 **Telework by default** | Configurable office/telework mode |
+| 🏖️ **Day‑off aware** | Free "Fridom" Fridays don't count against you |
+| 🔄 **Auto‑refresh** | Every 10 min (configurable) + on demand |
+| 🪶 **Tiny & native** | Swift menu‑bar agent, no Dock icon, no Electron |
+
+## Quick start
+
+> **Requirements:** macOS 13+, Google Chrome (logged in to Bizneo), and Apple's
+> Command Line Tools (`xcode-select --install`).
+
+```bash
+# 1) Build the app
+./build_app.sh                      # → BizneoCompanion.app
+
+# 2) Point it at your account (see “Finding your details” below)
+open "$HOME/Library/Application Support/BizneoCompanion/config.json"
+#    set "tenant", "userId", and your Chrome "chromeProfile"
+
+# 3) Launch it
+open BizneoCompanion.app
+```
+
+On first run macOS shows **one Keychain prompt** ("Chrome Safe Storage") — click
+**Always Allow** so the app can read your Chrome session cookie.
+
+<details>
+<summary><b>Finding your tenant &amp; user id</b></summary>
+
+Open your Bizneo timesheet in Chrome. The URL looks like:
+
+```
+https://<your-company>.bizneohr.com/time-attendance/my-logs/<your-user-id>
+```
+
+- `tenant` = `<your-company>`
+- `userId` = `<your-user-id>` (the number)
+- `chromeProfile` = the Chrome profile you're logged in with (e.g. `Default`,
+  `Profile 1`). Find it at `chrome://version` → *Profile Path*.
+</details>
+
+## Using it day to day
+
+- **The bar number** is your balance for the chosen period (`barMetric`, default
+  `week`). **Red = behind, green = ahead.** Week/month/year are cumulative, so the
+  bar reflects extra time you banked earlier in the period.
+- **The dropdown** breaks it down by today / week / month / year. When unapproved
+  edits exist you'll see `(official …, +… pending)` so you know what's provisional.
+- **Clock controls** appear based on your current state: *Check in* when you're out,
+  *Take break / Check out* while working, *Resume / Check out* on a break. The bar
+  glyph shows ● working / ⏸ on break.
+
+## Privacy & security
+
+- 🔒 **Local only.** Everything runs on your Mac and talks directly to your Bizneo
+  tenant. No third‑party servers.
+- 🙅 **No password stored.** It never asks for or keeps your Bizneo password — it
+  reuses the session cookie Chrome already has.
+- 🔑 **Cookie stays in memory.** Read fresh each refresh, never written to disk.
+- 📍 **No location/geolocation** is ever sent when clocking in.
+
+## Configuration
+
+Stored at `~/Library/Application Support/BizneoCompanion/config.json` (or menu →
+**Edit configuration…**). Highlights:
+
+| Key | What it does | Default |
+|---|---|---|
+| `barMetric` | Which period the bar shows: `today`/`week`/`month`/`year` | `week` |
+| `enableYearTotal` | Show year‑to‑date (caches past months) | `true` |
+| `defaultTelework` | Clock in/resume as telework | `true` |
+| `defaultProjectId` | Project for the quick check‑in | `null` |
+| `dayOffScheduleNames` | Schedule names that mean "day off" | `["Fridom"]` |
+| `includePending` | Fold in unapproved change requests | `true` |
+| `refreshSeconds` | Auto‑refresh interval | `600` |
+
+<details><summary>Full config example</summary>
+
+```json
+{
+  "tenant": "<your-company>",
+  "userId": "<your-user-id>",
+  "chromeProfile": "Default",
+  "refreshSeconds": 600,
+  "weekStartsMonday": true,
+  "includePending": true,
+  "dayOffScheduleNames": ["Fridom"],
+  "enableClockActions": true,
+  "enableYearTotal": true,
+  "barMetric": "week",
+  "defaultTelework": true,
+  "defaultProjectId": null,
+  "manualCookie": null
+}
+```
+</details>
+
+## FAQ
+
+**Do I need an API token or admin access?** No — it reuses your normal Chrome login.
+
+**Will it change my data?** Only when *you* click a clock action. The balance views
+are read‑only.
+
+**It says "Not logged in"?** Your Bizneo session expired — open Bizneo in Chrome and
+log in; the app picks the new cookie up on the next refresh.
+
+**Does it work with Safari/Firefox?** Currently Chrome only. (Or paste a cookie via
+`manualCookie`.)
+
+## How it works
+
+<details><summary>Architecture &amp; endpoints (for the curious)</summary>
+
+Bizneo Companion authenticates by decrypting Chrome's `_hcmex_key` session cookie
+(Keychain *Chrome Safe Storage* + AES‑128‑CBC) and calling the same internal
+endpoints the web app uses, parsing the returned HTML.
+
+| Figure | Source |
+|---|---|
+| Today | `GET /chrono/{userId}/hub_chrono` → scheduled / logged |
+| Month | `GET /time-attendance/my-logs/{userId}?month=&year=` → balance "Until today" |
+| Week | same page → sum of daily balances |
+| Year | sum of monthly pages Jan→now (past months cached) |
+| Pending | `…/logged-time-requests/{id}` → proposed duration |
+
+Clock actions: `POST /chrono` (check in), `PUT /chrono/{userId}` with `pause=` to
+break/resume and without it to check out.
+
+Parsers are anchored on stable labels/classes and covered by a built‑in self‑test
+against captured HTML fixtures:
+
+```bash
+BizneoCompanion.app/Contents/MacOS/BizneoCompanion \
+  --selftest Tests/BizneoCompanionTests/Fixtures
+```
+
+Project layout: `Sources/BizneoCore` (parsing, models, client, cookie decrypt),
+`Sources/BizneoCompanion` (menu‑bar UI, probe, self‑test).
+</details>
+
+## Roadmap
+
+- [ ] Real screenshots / demo GIF
+- [ ] Optional telework/office quick toggle
+- [ ] Manual "refresh year" for late approvals in past months
+- [ ] Safari/Firefox cookie support
+
+## Contributing
+
+Issues and PRs welcome — especially if Bizneo changes its markup (re‑capture the
+HTML and update `TimesheetParser`). If this saved you some clicks, a ⭐ helps others find it.
+
+## License
+
+Licensed under [Creative Commons Attribution‑NonCommercial 4.0 International](LICENSE)
+(CC BY‑NC 4.0) © 2026 **asolfre**. You may share and adapt it for non‑commercial
+purposes with attribution.
+
+## Disclaimer
+
+Independent, unofficial tool. Not affiliated with or endorsed by Bizneo. It uses
+undocumented internal endpoints that may change at any time. Use at your own risk.

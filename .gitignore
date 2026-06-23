@@ -1,0 +1,13 @@
+# Build artifacts
+.build/
+*.app
+
+# HAR captures
+*.har
+captures/
+
+# Local config backups
+*.backup-*
+
+# macOS
+.DS_Store

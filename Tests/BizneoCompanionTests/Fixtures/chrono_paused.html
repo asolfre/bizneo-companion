@@ -1,0 +1,174 @@
+
+
+
+<div id="chronometer-wrapper">
+  <div class="hub-module-wrapper">
+    <div class="hub-heading p-2">
+      <span class="h2 !mb-0">Timer</span>
+      
+<div class="dropdown float-right text-center" data-size="small" data-close-on-leave="horizontal">
+  <div class="dropdown-trigger">
+    
+    
+      <button type="button" class="contextual-btn">
+  
+        <i class="huge-icon huge-more-horizontal-stroke-rounded is-small text-default"></i>
+      
+</button>
+    
+  </div>
+
+  <div class="dropdown-menu small">
+    
+        <button type="button" class="" data-toggle-show=".chrono-toggle-wrap" data-toggle-disable-inputs="false">
+  
+          Add comment
+        
+</button>
+
+          <a href="/time-attendance/my-logs/1000001" hx-disable>
+            My timesheet
+          </a>
+
+      
+  </div>
+</div>
+    </div>
+    <div class="hub-chrono card is-small ">
+      <div class="">
+        <form action="/chrono/1000001" method="post" id="chrono-form-default_chrono" class="chronometer" hx-push-url="false" hx-trigger="submit" hx-fragment="#chronometer-wrapper" hx-put="/chrono/1000001" hx-request-geo>
+  <input name="_method" type="hidden" hidden value="put">
+  <input name="_csrf_token" type="hidden" hidden value="Nxg_UgdmQiYYAlk0NkVyAhdbFlofDRheVZzdf7zapMlwc0FTU1RwmBKn">
+  
+          <input type="hidden" name="location_id" id="chrono-form-default_chrono_location_id" value="">
+          <div hx-get="/chrono/1000001?location_id=" hx-trigger="every 60s" hx-fragment="#chronometer-wrapper" hx-include="#chrono-form_comment" hx-push-url="false" class="flex flex-col grow">
+            <div class="chrono-toggle-wrap">
+              <div class="my-4 text-center">
+                <div>
+                  <p class="h1 text-secondary time grow !mb-0">
+                    <i class="huge-icon huge-dish-02-stroke-rounded is-small text-current mb-2" title="Break" data-tooltip="true" data-size="auto"></i>
+                    <span class="ml-1" data-timer="" data-from="2026-6-22 14:08:50" data-time-zone="Europe/Madrid">
+                      <span class="timer-time-days"></span>
+                      <span class="timer-time-hours-minutes"></span>
+                      <span class="timer-time-seconds text-secondary"></span>
+                    </span>
+                  </p>
+
+                  <div class="row time">
+                    <span class="tag is-white is-medium is-medium !mx-auto">
+  
+                      <p class="mb-0" data-tooltip data-get-from="#dropdown-tooltip" data-theme="light" data-size="small">
+
+                          <b>4:51</b>
+
+                      </p>
+                      <p class="text-secondary mb-0 !ml-1">logged today</p>
+                    
+</span>
+                  </div>
+
+                  <div class="!hidden" id="dropdown-tooltip">
+
+                      <p class="h3">Expected clocking</p>
+                      <dl class="description-list">
+
+
+                          <dt class="list-term">Total scheduled</dt>
+                          <dd class="term-description">8:00</dd>
+                          <dt class="list-term">Logged</dt>
+                          <dd class="term-description">4:51</dd>
+
+                            <dt class="list-term">Missing</dt>
+
+                          <dd class="term-description">
+                            3:08
+                          </dd>
+
+                      </dl>
+
+                  </div>
+                </div>
+
+                
+
+                
+              </div>
+
+              <div class="form-group !mb-2">
+  
+    
+  
+  
+  <select id="chrono-form-default_chrono_projects" name="projects[]" multiple autocomplete="off" data-selector disabled placeholder="No project">
+    <!-- For multiple selector, we must not have an empty option https://select2.org/placeholders#multi-select-placeholders -->
+    
+    <option path="15737940" depth="0" value="15737940">Project A</option><option path="15737884" depth="0" value="15737884">Project B</option><option path="1573788415756400" depth="1" value="15756400">Project C</option><option path="1573788415741264" depth="1" selected value="15741264">Project D</option><option path="15737877" depth="0" value="15737877">Project E</option><option path="1573787715738019" depth="1" value="15738019">Project F</option><option path="1573787715738020" depth="1" value="15738020">Project G</option><option path="1573787715743249" depth="1" value="15743249">Project H</option>
+  </select>
+
+  
+  
+</div>
+
+              <input type="hidden" name="shift_id" id="chrono-form-default_chrono_shift_id" value="17724806">
+              
+              <div class="actions-row">
+
+
+                    <div class="telework-col alternate-bg-form-components">
+  <div class="buttons-group">
+    <div class="form-radio ">
+  <input type="radio" id="1782130130656880248_working_time_working_time" name="kind" value="working_time" checked autocomplete="off">
+  
+    <label for="1782130130656880248_working_time_working_time" class="before:!hidden after:!hidden button is-square h-full">
+        <i class="huge-icon huge-corporate-stroke-rounded is-xsmall text-current"></i>
+      </label>
+  
+</div>
+
+    <div class="form-radio ">
+  <input type="radio" id="1782130130656882611_telework_telework" name="kind" value="telework" autocomplete="off">
+  
+    <label for="1782130130656882611_telework_telework" class="before:!hidden after:!hidden button is-square h-full">
+        <i class="huge-icon huge-home-03-stroke-rounded is-xsmall text-current"></i>
+      </label>
+  
+</div>
+  </div>
+</div>
+                    <button type="submit" class="button primary w-full" name="pause" value="26919" data-gtm-action="chrono stop rest" data-gtm-category="chrono" data-gtm-value="26919">
+  
+                      <i class="huge-icon huge-play-stroke-standard is-xsmall text-current"></i>
+                      Resume
+                    
+</button>
+
+
+              </div>
+            </div>
+
+            <div class="chrono-toggle-wrap !hidden">
+              <div class="form-group ">
+  
+    
+  
+  
+    <textarea id="chrono-form-default_chrono_comment" name="comment" class="form-control " placeholder="Comment" autofocus="true">
+</textarea>
+  
+  
+  
+</div>
+              <button type="button" class="button is-link back" data-toggle-show=".chrono-toggle-wrap" data-toggle-disable-inputs="false">
+  
+                <i class="huge-icon huge-arrow-left-01-stroke-standard is-xsmall text-current mr-0"></i>
+                Back
+              
+</button>
+            </div>
+          </div>
+        
+</form>
+      </div>
+    </div>
+  </div>
+</div>

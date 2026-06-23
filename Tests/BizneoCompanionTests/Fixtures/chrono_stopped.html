@@ -1,0 +1,139 @@
+
+
+
+<div id="chronometer-wrapper">
+  <div class="hub-module-wrapper">
+    <div class="hub-heading p-2">
+      <span class="h2 !mb-0">Timer</span>
+
+        
+<div class="dropdown float-right text-center" data-size="small" data-close-on-leave="horizontal">
+  <div class="dropdown-trigger">
+    
+    
+      <button type="button" class="contextual-btn">
+  
+        <i class="huge-icon huge-more-horizontal-stroke-rounded is-small text-default"></i>
+      
+</button>
+    
+  </div>
+
+  <div class="dropdown-menu small">
+    
+          <a href="/time-attendance/my-logs/1000001" hx-disable>
+            My timesheet
+          </a>
+        
+  </div>
+</div>
+
+    </div>
+
+    <div class="hub-chrono card is-small">
+      <div class="">
+        <form action="/chrono" method="post" id="chrono-form-default_chrono" class="chronometer" hx-push-url="false" hx-trigger="submit" hx-fragment="#chronometer-wrapper" hx-post="/chrono" hx-request-geo>
+  
+  <input name="_csrf_token" type="hidden" hidden value="BxAydD5jCDMnfncPDT9WbwElFFo4DQtUfRwB_20tO1BLXJb9COPwJBXd">
+  
+          <input type="hidden" name="location_id" id="chrono-form-default_chrono_location_id" value="">
+          <input type="hidden" name="user_id" id="chrono-form-default_chrono_user_id" value="1000001">
+
+          <div class="chrono-toggle-wrap">
+
+              <div class="my-4 text-center">
+                <div id="time-row">
+                  <p class="h1 text-secondary time grow !mb-0">
+
+                    <i class="huge-icon huge-corporate-duotone-rounded is-small text-current mb-2" title="At the office" data-tooltip="true" data-size="auto"></i>
+                    <span class="ml-1">
+                      <span class="timer-time-hours-minutes">00:00</span>
+                      <span class="timer-time-seconds text-secondary">00</span>
+                    </span>
+                  </p>
+                </div>
+
+                  <div class="row time">
+                    <p data-tooltip data-get-from="#dropdown-tooltip" data-theme="light" data-size="small">
+                      <b>4:53</b>
+                    </p>
+                    <p class="text-secondary !ml-1">logged today</p>
+                  </div>
+
+                  <div class="!hidden" id="dropdown-tooltip">
+                    <p class="h3">Expected clocking</p>
+                    <dl class="description-list">
+
+
+                        <dt class="list-term">Total scheduled</dt>
+                        <dd class="term-description">8:00</dd>
+                        <dt class="list-term">Logged</dt>
+                        <dd class="term-description">4:53</dd>
+
+                          <dt class="list-term">Missing</dt>
+
+                        <dd class="term-description">
+                          3:07
+                        </dd>
+
+                    </dl>
+                  </div>
+
+                
+
+                
+              </div>
+
+              <div class="form-group !mb-2">
+  
+    
+  
+  
+  <select id="chrono-form-default_chrono_projects" name="projects[]" multiple autocomplete="off" data-selector placeholder="Project">
+    <!-- For multiple selector, we must not have an empty option https://select2.org/placeholders#multi-select-placeholders -->
+    
+    <option path="15737940" depth="0" value="15737940">Project A</option><option path="15737884" depth="0" value="15737884">Project B</option><option path="1573788415756400" depth="1" value="15756400">Project C</option><option path="1573788415741264" depth="1" value="15741264">Project D</option><option path="15737877" depth="0" value="15737877">Project E</option><option path="1573787715738019" depth="1" value="15738019">Project F</option><option path="1573787715738020" depth="1" value="15738020">Project G</option><option path="1573787715743249" depth="1" value="15743249">Project H</option>
+  </select>
+
+  
+  
+</div>
+
+              <input type="hidden" name="shift_id" id="chrono-form-default_chrono_shift_id" value="17724806">
+              
+
+            <div class="actions-row">
+              <div class="telework-col alternate-bg-form-components">
+  <div class="buttons-group">
+    <div class="form-radio ">
+  <input type="radio" id="1782133801459699967_working_time_working_time" name="kind" value="working_time" checked autocomplete="off" hx-get="/chrono/1000001" hx-push-url="false" hx-trigger="click" hx-fragment="#time-row">
+  
+    <label for="1782133801459699967_working_time_working_time" class="before:!hidden after:!hidden button is-square h-full">
+        <i class="huge-icon huge-corporate-stroke-rounded is-xsmall text-current"></i>
+      </label>
+  
+</div>
+
+    <div class="form-radio ">
+  <input type="radio" id="1782133801459703200_telework_telework" name="kind" value="telework" autocomplete="off" hx-get="/chrono/1000001" hx-push-url="false" hx-trigger="click" hx-fragment="#time-row">
+  
+    <label for="1782133801459703200_telework_telework" class="before:!hidden after:!hidden button is-square h-full">
+        <i class="huge-icon huge-home-03-stroke-rounded is-xsmall text-current"></i>
+      </label>
+  
+</div>
+  </div>
+</div>
+
+              <button type="submit" class="button primary w-full" data-gtm-category="chrono" data-gtm-action="chrono start" data-chronoStart="">
+                <i class="huge-icon huge-play-stroke-standard is-xsmall text-current"></i>
+                Start
+              </button>
+            </div>
+          </div>
+        
+</form>
+      </div>
+    </div>
+  </div>
+</div>
