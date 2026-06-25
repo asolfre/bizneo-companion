@@ -15,7 +15,8 @@ final class StatusItemController: NSObject {
     private var lastRefreshAt: Date?
     private var displayTimer: Timer?
     /// Period stats + their menu items, for in-place live-tick updates.
-    private var periodRows: [(stat: PeriodStat, item: NSMenuItem)] = []
+    /// `secondsLive` = show H:MM:SS while the timer runs (Today only).
+    private var periodRows: [(stat: PeriodStat, item: NSMenuItem, secondsLive: Bool)] = []
 
     init(config: Config) {
         self.config = config
@@ -120,7 +121,7 @@ final class StatusItemController: NSObject {
     private func tick() {
         guard isLive else { startOrStopDisplayTimer(); return }
         refreshTitle()
-        for row in periodRows { row.item.title = periodTitleString(row.stat) }
+        for row in periodRows { row.item.title = periodTitleString(row.stat, secondsLive: row.secondsLive) }
     }
 
     /// Small leading glyph showing clock state: ● working, ⏸ break, (none) stopped.
@@ -164,7 +165,7 @@ final class StatusItemController: NSObject {
 
         if let s = snapshot {
             menu.addItem(header("Bizneo Companion"))
-            menu.addItem(periodItem(s.today))
+            menu.addItem(periodItem(s.today, isToday: true))
             menu.addItem(periodItem(s.week))
             menu.addItem(periodItem(s.month))
             if let year = s.year { menu.addItem(periodItem(year)) }
@@ -207,23 +208,23 @@ final class StatusItemController: NSObject {
         menu.addItem(actionItem("Quit", #selector(quit), key: "q"))
     }
 
-    private func periodItem(_ s: PeriodStat) -> NSMenuItem {
-        let item = NSMenuItem(title: periodTitleString(s), action: nil, keyEquivalent: "")
+    private func periodItem(_ s: PeriodStat, isToday: Bool = false) -> NSMenuItem {
+        let item = NSMenuItem(title: periodTitleString(s, secondsLive: isToday), action: nil, keyEquivalent: "")
         item.isEnabled = true
         if s.hasPending {
             item.toolTip = "Includes \(TimeFmt.signed(s.pendingDeltaMin)) of pending (unapproved) changes."
         }
-        periodRows.append((s, item))
+        periodRows.append((s, item, isToday))
         return item
     }
 
-    /// Title for a period row. Shows H:MM:SS that ticks while the timer runs,
-    /// otherwise static H:MM.
-    private func periodTitleString(_ s: PeriodStat) -> String {
+    /// Title for a period row. The Today row ticks in H:MM:SS while the timer runs;
+    /// other rows show H:MM (live at minute resolution).
+    private func periodTitleString(_ s: PeriodStat, secondsLive: Bool) -> String {
         let secs = liveSeconds(s)
         let dot = secs < 0 ? "🔴 " : (secs > 0 ? "🟢 " : "⚪️ ")
         let verb = secs < 0 ? "missing" : "ahead"
-        let mag = isLive ? hmsMagnitude(secs) : TimeFmt.plain(s.projectedBalanceMin)
+        let mag = (isLive && secondsLive) ? hmsMagnitude(secs) : TimeFmt.plain(abs(secs) / 60)
         var title = "\(dot)\(s.label):  \(verb) \(mag)"
         if s.hasPending {
             title += "   (official \(TimeFmt.signed(s.officialBalanceMin)), pending \(TimeFmt.signed(s.pendingDeltaMin)))"
