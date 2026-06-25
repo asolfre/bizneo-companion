@@ -27,6 +27,10 @@ public struct Config: Codable {
     public var defaultTelework: Bool
     /// Project id pre-selected for the quick "Check in" item (nil = no project).
     public var defaultProjectId: String?
+    /// While the timer is running, count the displayed balances up between refreshes.
+    public var liveTick: Bool
+    /// When live-ticking, show seconds (`H:MM:SS`) in the menu bar while working.
+    public var barShowSecondsWhileWorking: Bool
     /// Optional manual cookie override: `_hcmex_key=...; device_id=...`.
     /// When set, Chrome/Keychain is bypassed entirely.
     public var manualCookie: String?
@@ -43,6 +47,8 @@ public struct Config: Codable {
                 barMetric: BarMetric = .week,
                 defaultTelework: Bool = true,
                 defaultProjectId: String? = nil,
+                liveTick: Bool = true,
+                barShowSecondsWhileWorking: Bool = false,
                 manualCookie: String? = nil) {
         self.tenant = tenant
         self.userId = userId
@@ -56,6 +62,8 @@ public struct Config: Codable {
         self.barMetric = barMetric
         self.defaultTelework = defaultTelework
         self.defaultProjectId = defaultProjectId
+        self.liveTick = liveTick
+        self.barShowSecondsWhileWorking = barShowSecondsWhileWorking
         self.manualCookie = manualCookie
     }
 
@@ -76,6 +84,8 @@ public struct Config: Codable {
         barMetric = try c.decodeIfPresent(BarMetric.self, forKey: .barMetric) ?? d.barMetric
         defaultTelework = try c.decodeIfPresent(Bool.self, forKey: .defaultTelework) ?? d.defaultTelework
         defaultProjectId = try c.decodeIfPresent(String.self, forKey: .defaultProjectId) ?? d.defaultProjectId
+        liveTick = try c.decodeIfPresent(Bool.self, forKey: .liveTick) ?? d.liveTick
+        barShowSecondsWhileWorking = try c.decodeIfPresent(Bool.self, forKey: .barShowSecondsWhileWorking) ?? d.barShowSecondsWhileWorking
         manualCookie = try c.decodeIfPresent(String.self, forKey: .manualCookie) ?? d.manualCookie
     }
 
