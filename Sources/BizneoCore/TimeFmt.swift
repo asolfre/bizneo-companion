@@ -58,4 +58,11 @@ public enum TimeFmt {
         let a = abs(seconds)
         return String(format: "%@%d:%02d:%02d", sign, a / 3600, (a % 3600) / 60, a % 60)
     }
+
+    /// Format an absolute date as a `HH:MM` wall-clock time in the given calendar's
+    /// timezone (e.g. a checkout time → "16:28").
+    public static func clock(_ date: Date, calendar: Calendar) -> String {
+        let c = calendar.dateComponents([.hour, .minute], from: date)
+        return String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
+    }
 }

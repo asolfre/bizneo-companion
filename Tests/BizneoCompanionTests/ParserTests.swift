@@ -137,5 +137,17 @@ final class ParserTests: XCTestCase {
         // Today from hub_chrono: 7:31 - 8:00 = -29 min, no pending.
         XCTAssertEqual(snap.today.officialBalanceMin, (7*60+31) - 480)
         XCTAssertEqual(snap.today.pendingDeltaMin, 0)
+
+        // Expected checkout: 0:29 behind (projected) at 12:00 → leave by 12:29.
+        let checkout = Calculator.expectedCheckout(today: snap.today, generatedAt: snap.generatedAt)
+        XCTAssertEqual(checkout, now.addingTimeInterval(29 * 60))
+        let madrid = Calculator.madridCalendar(weekStartsMonday: true)
+        XCTAssertEqual(checkout.map { TimeFmt.clock($0, calendar: madrid) }, "12:29")
+        XCTAssertEqual(TimeFmt.clock(
+            c.date(from: DateComponents(year: 2026, month: 6, day: 18, hour: 16, minute: 28))!,
+            calendar: madrid), "16:28")
+        // At/over target → no checkout time.
+        XCTAssertNil(Calculator.expectedCheckout(
+            today: PeriodStat(label: "Today", officialBalanceMin: 15), generatedAt: now))
     }
 }
