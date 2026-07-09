@@ -5,6 +5,12 @@ public enum BarMetric: String, Codable {
     case today, week, month, year
 }
 
+/// Which dropdown rows show live seconds (`H:MM:SS`) while the timer runs.
+/// `none` = never; `today` = Today row only (default); `all` = every period row.
+public enum DropdownSecondsScope: String, Codable {
+    case none, today, all
+}
+
 /// User-editable configuration, persisted to
 /// `~/Library/Application Support/BizneoCompanion/config.json`.
 public struct Config: Codable {
@@ -31,6 +37,8 @@ public struct Config: Codable {
     public var liveTick: Bool
     /// When live-ticking, show seconds (`H:MM:SS`) in the menu bar while working.
     public var barShowSecondsWhileWorking: Bool
+    /// Which dropdown rows show live seconds while working: `none`/`today`/`all`.
+    public var dropdownSecondsScope: DropdownSecondsScope
     /// Optional manual cookie override: `_hcmex_key=...; device_id=...`.
     /// When set, Chrome/Keychain is bypassed entirely.
     public var manualCookie: String?
@@ -41,7 +49,7 @@ public struct Config: Codable {
                 refreshSeconds: Int = 600,
                 weekStartsMonday: Bool = true,
                 includePending: Bool = true,
-                dayOffScheduleNames: [String] = ["Fridom"],
+                dayOffScheduleNames: [String] = ["Fridom", "Fridom (7 hours)"],
                 enableClockActions: Bool = true,
                 enableYearTotal: Bool = true,
                 barMetric: BarMetric = .week,
@@ -49,6 +57,7 @@ public struct Config: Codable {
                 defaultProjectId: String? = nil,
                 liveTick: Bool = true,
                 barShowSecondsWhileWorking: Bool = false,
+                dropdownSecondsScope: DropdownSecondsScope = .today,
                 manualCookie: String? = nil) {
         self.tenant = tenant
         self.userId = userId
@@ -64,6 +73,7 @@ public struct Config: Codable {
         self.defaultProjectId = defaultProjectId
         self.liveTick = liveTick
         self.barShowSecondsWhileWorking = barShowSecondsWhileWorking
+        self.dropdownSecondsScope = dropdownSecondsScope
         self.manualCookie = manualCookie
     }
 
@@ -86,6 +96,7 @@ public struct Config: Codable {
         defaultProjectId = try c.decodeIfPresent(String.self, forKey: .defaultProjectId) ?? d.defaultProjectId
         liveTick = try c.decodeIfPresent(Bool.self, forKey: .liveTick) ?? d.liveTick
         barShowSecondsWhileWorking = try c.decodeIfPresent(Bool.self, forKey: .barShowSecondsWhileWorking) ?? d.barShowSecondsWhileWorking
+        dropdownSecondsScope = try c.decodeIfPresent(DropdownSecondsScope.self, forKey: .dropdownSecondsScope) ?? d.dropdownSecondsScope
         manualCookie = try c.decodeIfPresent(String.self, forKey: .manualCookie) ?? d.manualCookie
     }
 

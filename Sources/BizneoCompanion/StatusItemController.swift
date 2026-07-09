@@ -218,13 +218,20 @@ final class StatusItemController: NSObject {
         return item
     }
 
-    /// Title for a period row. The Today row ticks in H:MM:SS while the timer runs;
-    /// other rows show H:MM (live at minute resolution).
+    /// Title for a period row. Seconds (H:MM:SS) tick while the timer runs per
+    /// `config.dropdownSecondsScope` (`none`/`today`/`all`); otherwise H:MM.
     private func periodTitleString(_ s: PeriodStat, secondsLive: Bool) -> String {
         let secs = liveSeconds(s)
         let dot = secs < 0 ? "🔴 " : (secs > 0 ? "🟢 " : "⚪️ ")
         let verb = secs < 0 ? "missing" : "ahead"
-        let mag = (isLive && secondsLive) ? hmsMagnitude(secs) : TimeFmt.plain(abs(secs) / 60)
+        let showSeconds = isLive && {
+            switch config.dropdownSecondsScope {
+            case .none:  return false
+            case .today: return secondsLive   // true only for the Today row
+            case .all:   return true
+            }
+        }()
+        let mag = showSeconds ? hmsMagnitude(secs) : TimeFmt.plain(abs(secs) / 60)
         var title = "\(dot)\(s.label):  \(verb) \(mag)"
         if s.hasPending {
             title += "   (official \(TimeFmt.signed(s.officialBalanceMin)), pending \(TimeFmt.signed(s.pendingDeltaMin)))"

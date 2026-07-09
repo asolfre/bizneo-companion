@@ -147,6 +147,7 @@ enum SelfTest {
         check(dc.barMetric == .week, "default barMetric == week", dc.barMetric.rawValue)
         check(dc.defaultTelework == true, "default telework == true")
         check(dc.enableYearTotal == true, "default enableYearTotal == true")
+        check(dc.dropdownSecondsScope == .today, "default dropdownSecondsScope == today", dc.dropdownSecondsScope.rawValue)
 
         print(failures == 0 ? "\nALL PASSED ✅" : "\n\(failures) FAILED ❌")
         return failures == 0 ? 0 : 1
