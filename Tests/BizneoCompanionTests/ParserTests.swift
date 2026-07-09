@@ -117,16 +117,21 @@ final class ParserTests: XCTestCase {
         let snap = Calculator.makeSnapshot(config: cfg, hubChrono: hub, monthBalanceMin: monthBal,
                                            monthLoggedMin: nil, days: days, pending: pending, now: now)
 
-        // Month official = -14:21 (header) + 6:00 (Jun5 Fridom correction).
-        XCTAssertEqual(snap.month.officialBalanceMin, -(14 * 60 + 21) + 360)
+        // Reconcile: week/month fold in the live "today" delta (hub_chrono includes
+        // the running session) vs the committed my-logs Thu18 row.
+        // = (7:31-8:00) - (-2:43) = -0:29 + 2:43 = +2:14 = 134 min.
+        let reconcile = ((7 * 60 + 31) - 480) - -(2 * 60 + 43)
+
+        // Month official = -14:21 (header) + 6:00 (Jun5 Fridom correction) + reconcile.
+        XCTAssertEqual(snap.month.officialBalanceMin, -(14 * 60 + 21) + 360 + reconcile)
         // Pending delta = (8:14-5:55) + (8:00-2:59) = 2:19 + 5:01 = 7:20 = 440 min.
         XCTAssertEqual(snap.month.pendingDeltaMin, (2 * 60 + 19) + (5 * 60 + 1))
-        // Projected month = -861 + 360 + 440.
-        XCTAssertEqual(snap.month.projectedBalanceMin, -(14 * 60 + 21) + 360 + ((2 * 60 + 19) + (5 * 60 + 1)))
+        // Projected month = -861 + 360 + reconcile + 440.
+        XCTAssertEqual(snap.month.projectedBalanceMin, -(14 * 60 + 21) + 360 + reconcile + ((2 * 60 + 19) + (5 * 60 + 1)))
 
-        // Week (Mon15..Thu18) official = sum of daily balances.
+        // Week (Mon15..Thu18) official = sum of daily balances + reconcile.
         let expectedWeek = -(2*60+5) + -(5) + -(5*60+1) + -(2*60+43)
-        XCTAssertEqual(snap.week.officialBalanceMin, expectedWeek)
+        XCTAssertEqual(snap.week.officialBalanceMin, expectedWeek + reconcile)
         XCTAssertEqual(snap.week.pendingDeltaMin, (2*60+19) + (5*60+1))
 
         // Today from hub_chrono: 7:31 - 8:00 = -29 min, no pending.
