@@ -12,6 +12,11 @@ final class StatusItemController: NSObject {
     private var timer: Timer?
     private var lastError: String?
     private var clockBusy = false
+    private var lastRefreshAt: Date?
+    private var displayTimer: Timer?
+    /// Period stats + their menu items, for in-place live-tick updates.
+    /// `secondsLive` = show H:MM:SS while the timer runs (Today only).
+    private var periodRows: [(stat: PeriodStat, item: NSMenuItem, secondsLive: Bool)] = []
 
     init(config: Config) {
         self.config = config
@@ -56,10 +61,67 @@ final class StatusItemController: NSObject {
     private var latest: Snapshot?
     private func apply(_ snap: Snapshot) {
         latest = snap
-        let stat = snap.stat(for: config.barMetric)
-        setTitle(clockGlyph(snap.chrono) + TimeFmt.signed(stat.projectedBalanceMin),
-                 color: color(for: stat.projectedBalanceMin))
+        lastRefreshAt = snap.generatedAt
+        refreshTitle()
         rebuildMenu(snapshot: snap)
+        startOrStopDisplayTimer()
+    }
+
+    // MARK: - Live tick
+
+    /// Whether the chronometer is currently running.
+    private var isWorking: Bool {
+        config.enableClockActions && latest?.chrono?.status == .working
+    }
+
+    /// Whether displayed values should count up between refreshes.
+    private var isLive: Bool { config.liveTick && isWorking }
+
+    /// Live projected balance for a period, in seconds (adds time since last refresh
+    /// while the timer runs).
+    private func liveSeconds(_ s: PeriodStat) -> Int {
+        let elapsed = isLive ? Int(Date().timeIntervalSince(lastRefreshAt ?? Date())) : 0
+        return s.liveSeconds(working: isLive, elapsedSinceRefresh: elapsed)
+    }
+
+    private func colorForSeconds(_ secs: Int) -> NSColor {
+        secs < 0 ? .systemRed : (secs > 0 ? .systemGreen : .labelColor)
+    }
+
+    /// Menu-bar text for a period's live balance (H:MM, or H:MM:SS when configured).
+    private func barText(_ s: PeriodStat) -> String {
+        let secs = liveSeconds(s)
+        if isLive && config.barShowSecondsWhileWorking {
+            return TimeFmt.signedHMS(secs)
+        }
+        let sign = secs < 0 ? -1 : 1
+        return TimeFmt.signed(sign * (abs(secs) / 60))
+    }
+
+    private func refreshTitle() {
+        guard let s = latest else { return }
+        let stat = s.stat(for: config.barMetric)
+        setTitle(clockGlyph(s.chrono) + barText(stat), color: colorForSeconds(liveSeconds(stat)))
+    }
+
+    private func startOrStopDisplayTimer() {
+        if isLive {
+            guard displayTimer == nil else { return }
+            let t = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in
+                MainActor.assumeIsolated { self?.tick() }
+            }
+            RunLoop.main.add(t, forMode: .common)
+            displayTimer = t
+        } else {
+            displayTimer?.invalidate()
+            displayTimer = nil
+        }
+    }
+
+    private func tick() {
+        guard isLive else { startOrStopDisplayTimer(); return }
+        refreshTitle()
+        for row in periodRows { row.item.title = periodTitleString(row.stat, secondsLive: row.secondsLive) }
     }
 
     /// Small leading glyph showing clock state: ● working, ⏸ break, (none) stopped.
@@ -73,22 +135,18 @@ final class StatusItemController: NSObject {
     }
 
     private func applyError() {
+        displayTimer?.invalidate()
+        displayTimer = nil
         setTitle("⚠︎", color: .systemOrange)
         rebuildMenu(snapshot: latest)
     }
 
     private func currentTitleText() -> String? {
         guard let s = latest else { return nil }
-        return TimeFmt.signed(s.stat(for: config.barMetric).projectedBalanceMin)
+        return barText(s.stat(for: config.barMetric))
     }
 
     // MARK: - Title
-
-    private func color(for minutes: Int) -> NSColor {
-        if minutes < 0 { return .systemRed }
-        if minutes > 0 { return .systemGreen }
-        return .labelColor
-    }
 
     private func setTitle(_ text: String, color: NSColor, dim: Bool = false) {
         let font = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .semibold)
@@ -103,10 +161,11 @@ final class StatusItemController: NSObject {
 
     private func rebuildMenu(snapshot: Snapshot?) {
         menu.removeAllItems()
+        periodRows.removeAll()
 
         if let s = snapshot {
             menu.addItem(header("Bizneo Companion"))
-            menu.addItem(periodItem(s.today))
+            menu.addItem(periodItem(s.today, isToday: true))
             menu.addItem(periodItem(s.week))
             menu.addItem(periodItem(s.month))
             if let year = s.year { menu.addItem(periodItem(year)) }
@@ -149,19 +208,40 @@ final class StatusItemController: NSObject {
         menu.addItem(actionItem("Quit", #selector(quit), key: "q"))
     }
 
-    private func periodItem(_ s: PeriodStat) -> NSMenuItem {
-        let verb = s.projectedBalanceMin < 0 ? "missing" : "ahead"
-        var title = "\(s.label):  \(verb) \(TimeFmt.plain(abs(s.projectedBalanceMin)))"
-        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+    private func periodItem(_ s: PeriodStat, isToday: Bool = false) -> NSMenuItem {
+        let item = NSMenuItem(title: periodTitleString(s, secondsLive: isToday), action: nil, keyEquivalent: "")
         item.isEnabled = true
         if s.hasPending {
-            title += "   (official \(TimeFmt.signed(s.officialBalanceMin)), pending \(TimeFmt.signed(s.pendingDeltaMin)))"
-            item.title = title
             item.toolTip = "Includes \(TimeFmt.signed(s.pendingDeltaMin)) of pending (unapproved) changes."
         }
-        let dot = s.projectedBalanceMin < 0 ? "🔴 " : (s.projectedBalanceMin > 0 ? "🟢 " : "⚪️ ")
-        item.title = dot + title
+        periodRows.append((s, item, isToday))
         return item
+    }
+
+    /// Title for a period row. Seconds (H:MM:SS) tick while the timer runs per
+    /// `config.dropdownSecondsScope` (`none`/`today`/`all`); otherwise H:MM.
+    private func periodTitleString(_ s: PeriodStat, secondsLive: Bool) -> String {
+        let secs = liveSeconds(s)
+        let dot = secs < 0 ? "🔴 " : (secs > 0 ? "🟢 " : "⚪️ ")
+        let verb = secs < 0 ? "missing" : "ahead"
+        let showSeconds = isLive && {
+            switch config.dropdownSecondsScope {
+            case .none:  return false
+            case .today: return secondsLive   // true only for the Today row
+            case .all:   return true
+            }
+        }()
+        let mag = showSeconds ? hmsMagnitude(secs) : TimeFmt.plain(abs(secs) / 60)
+        var title = "\(dot)\(s.label):  \(verb) \(mag)"
+        if s.hasPending {
+            title += "   (official \(TimeFmt.signed(s.officialBalanceMin)), pending \(TimeFmt.signed(s.pendingDeltaMin)))"
+        }
+        return title
+    }
+
+    private func hmsMagnitude(_ secs: Int) -> String {
+        let a = abs(secs)
+        return String(format: "%d:%02d:%02d", a / 3600, (a % 3600) / 60, a % 60)
     }
 
     // MARK: - Clock (chronometer) section

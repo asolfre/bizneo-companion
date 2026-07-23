@@ -79,6 +79,13 @@ public struct PeriodStat {
     /// Balance including pending changes (what the user asked for).
     public var projectedBalanceMin: Int { officialBalanceMin + pendingDeltaMin }
     public var hasPending: Bool { pendingDeltaMin != 0 }
+
+    /// Live projected balance in **seconds**: the projected balance plus, while the
+    /// timer is running, the seconds elapsed since the last refresh (every period
+    /// includes today's running session after reconciliation).
+    public func liveSeconds(working: Bool, elapsedSinceRefresh: Int) -> Int {
+        projectedBalanceMin * 60 + (working ? max(0, elapsedSinceRefresh) : 0)
+    }
 }
 
 /// Full result of one refresh.

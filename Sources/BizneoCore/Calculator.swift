@@ -120,6 +120,18 @@ public enum Calculator {
             .reduce(0) { $0 + ($1.loggedMin ?? 0) }
         month.pendingDeltaMin = pendingDelta(in: monthDays)
 
+        // ----- Reconcile -----
+        // week/month/year come from the timesheet, which only counts *committed*
+        // time, while `today` (hub_chrono) includes the currently-running session.
+        // Fold that delta into the longer periods so they don't lag the timer.
+        // (year inherits this via computeYear, which is built from snapshot.month.)
+        if hubChrono != nil {
+            let committedToday = (todayRow?.balanceMin ?? 0) + (todayRow?.dayOffCorrection(dayOffNames) ?? 0)
+            let liveDelta = today.officialBalanceMin - committedToday
+            week.officialBalanceMin += liveDelta
+            month.officialBalanceMin += liveDelta
+        }
+
         return Snapshot(today: today, week: week, month: month,
                         pending: pending.filter { monthDays.contains($0.dateString) || includePending },
                         monthLoggedMin: monthLoggedMin, generatedAt: now)

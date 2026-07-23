@@ -29,6 +29,15 @@ enum SelfTest {
         check(TimeFmt.parseHM("-2:43") == -163, "parse -2:43 == -163")
         check(TimeFmt.parseHhMm("-14h 21m") == -861, "parse -14h 21m == -861")
         check(TimeFmt.signed(-163) == "-2:43", "format -163 == -2:43")
+        check(TimeFmt.signedHMS(-26790) == "-7:26:30", "signedHMS -26790 == -7:26:30", TimeFmt.signedHMS(-26790))
+        check(TimeFmt.signedHMS(90) == "+0:01:30", "signedHMS 90 == +0:01:30")
+        check(TimeFmt.signedHMS(0) == "+0:00:00", "signedHMS 0 == +0:00:00")
+
+        print("liveSeconds (live tick):")
+        let lp = PeriodStat(label: "x", officialBalanceMin: -2, pendingDeltaMin: 0)  // projected -2 min
+        check(lp.liveSeconds(working: false, elapsedSinceRefresh: 100) == -120, "not working → -2:00 static", lp.liveSeconds(working: false, elapsedSinceRefresh: 100))
+        check(lp.liveSeconds(working: true, elapsedSinceRefresh: 45) == -75, "working → -120 + 45s", lp.liveSeconds(working: true, elapsedSinceRefresh: 45))
+        check(lp.liveSeconds(working: true, elapsedSinceRefresh: -5) == -120, "working + clock skew clamps to 0", lp.liveSeconds(working: true, elapsedSinceRefresh: -5))
 
         print("hub_chrono (today):")
         let hc = TimesheetParser.parseHubChrono(hub)
@@ -83,13 +92,16 @@ enum SelfTest {
         let snap = Calculator.makeSnapshot(config: cfg, hubChrono: hc, monthBalanceMin: TimesheetParser.parseMonthBalance(logs),
                                            monthLoggedMin: nil, days: days, pending: pending, now: now)
         // Month official -14:21 from header, corrected for Jun5 "Fridom" day off (+6:00) → -8:21.
-        check(snap.month.officialBalanceMin == -861 + 360, "month official Fridom-corrected -8:21", snap.month.officialBalanceMin)
+        // Reconcile folds the live "today" delta (hub -0:29 vs my-logs -2:43 = +2:14 = 134)
+        // into week/month/year.
+        check(snap.month.officialBalanceMin == -861 + 360 + 134, "month official (Fridom + reconcile)", snap.month.officialBalanceMin)
         check(snap.month.pendingDeltaMin == 139+301, "month pending delta +7:20", snap.month.pendingDeltaMin)
-        check(snap.month.projectedBalanceMin == -861 + 360 + 440, "month projected -1:01", snap.month.projectedBalanceMin)
+        check(snap.month.projectedBalanceMin == -861 + 360 + 134 + 440, "month projected", snap.month.projectedBalanceMin)
         check(snap.today.officialBalanceMin == 451-480, "today official -0:29", snap.today.officialBalanceMin)
         check(snap.today.pendingDeltaMin == 0, "today no pending", snap.today.pendingDeltaMin)
-        let weekOfficial = -125 + -5 + -301 + -163   // Mon15..Thu18, no Fridom in range
-        check(snap.week.officialBalanceMin == weekOfficial, "week official sum", snap.week.officialBalanceMin)
+        let weekRaw = -125 + -5 + -301 + -163   // Mon15..Thu18 committed balances
+        check(snap.week.officialBalanceMin == weekRaw + 134, "week official (sum + reconcile)", snap.week.officialBalanceMin)
+        check(snap.week.officialBalanceMin - weekRaw == 134, "reconcile +2:14 folded into week", snap.week.officialBalanceMin - weekRaw)
         check(snap.week.pendingDeltaMin == 139+301, "week pending delta +7:20", snap.week.pendingDeltaMin)
 
         print("chrono state parsing:")
@@ -135,6 +147,7 @@ enum SelfTest {
         check(dc.barMetric == .week, "default barMetric == week", dc.barMetric.rawValue)
         check(dc.defaultTelework == true, "default telework == true")
         check(dc.enableYearTotal == true, "default enableYearTotal == true")
+        check(dc.dropdownSecondsScope == .today, "default dropdownSecondsScope == today", dc.dropdownSecondsScope.rawValue)
 
         print(failures == 0 ? "\nALL PASSED ✅" : "\n\(failures) FAILED ❌")
         return failures == 0 ? 0 : 1

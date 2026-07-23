@@ -127,8 +127,11 @@ Stored at `~/Library/Application Support/BizneoCompanion/config.json` (or menu �
 | `enableYearTotal` | Show year‑to‑date (caches past months) | `true` |
 | `defaultTelework` | Clock in/resume as telework | `true` |
 | `defaultProjectId` | Project for the quick check‑in | `null` |
-| `dayOffScheduleNames` | Schedule names that mean "day off" | `["Fridom"]` |
+| `dayOffScheduleNames` | Schedule names that mean "day off" | `["Fridom", "Fridom (7 hours)"]` |
 | `includePending` | Fold in unapproved change requests | `true` |
+| `liveTick` | Count balances up each second while the timer runs | `true` |
+| `barShowSecondsWhileWorking` | Show seconds (`H:MM:SS`) in the menu bar while working | `false` |
+| `dropdownSecondsScope` | Which dropdown rows tick in seconds: `none`/`today`/`all` | `today` |
 | `refreshSeconds` | Auto‑refresh interval | `600` |
 
 <details><summary>Full config example</summary>
@@ -141,12 +144,15 @@ Stored at `~/Library/Application Support/BizneoCompanion/config.json` (or menu �
   "refreshSeconds": 600,
   "weekStartsMonday": true,
   "includePending": true,
-  "dayOffScheduleNames": ["Fridom"],
+  "dayOffScheduleNames": ["Fridom", "Fridom (7 hours)"],
   "enableClockActions": true,
   "enableYearTotal": true,
   "barMetric": "week",
   "defaultTelework": true,
   "defaultProjectId": null,
+  "liveTick": true,
+  "barShowSecondsWhileWorking": false,
+  "dropdownSecondsScope": "today",
   "manualCookie": null
 }
 ```

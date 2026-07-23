@@ -51,4 +51,11 @@ public enum TimeFmt {
         let a = abs(minutes)
         return String(format: "%d:%02d", a / 60, a % 60)
     }
+
+    /// Format signed *seconds* as `+H:MM:SS` / `-H:MM:SS` (e.g. -26790 → "-7:26:30").
+    public static func signedHMS(_ seconds: Int) -> String {
+        let sign = seconds < 0 ? "-" : "+"
+        let a = abs(seconds)
+        return String(format: "%@%d:%02d:%02d", sign, a / 3600, (a % 3600) / 60, a % 60)
+    }
 }
