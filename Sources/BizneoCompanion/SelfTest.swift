@@ -104,6 +104,20 @@ enum SelfTest {
         check(snap.week.officialBalanceMin - weekRaw == 134, "reconcile +2:14 folded into week", snap.week.officialBalanceMin - weekRaw)
         check(snap.week.pendingDeltaMin == 139+301, "week pending delta +7:20", snap.week.pendingDeltaMin)
 
+        print("checkout time (expected leave):")
+        // Today is 0:29 behind (projected) and now=12:00 → leave by 12:29.
+        let checkout = Calculator.expectedCheckout(today: snap.today, generatedAt: snap.generatedAt)
+        check(checkout == now.addingTimeInterval(29*60), "checkout == now + 0:29", checkout as Any)
+        let madrid = Calculator.madridCalendar(weekStartsMonday: true)
+        check(checkout.map { TimeFmt.clock($0, calendar: madrid) } == "12:29", "checkout clock == 12:29",
+              checkout.map { TimeFmt.clock($0, calendar: madrid) } as Any)
+        // Non-negative (at/over target) → no checkout time.
+        var aheadToday = PeriodStat(label: "Today"); aheadToday.officialBalanceMin = 15
+        check(Calculator.expectedCheckout(today: aheadToday, generatedAt: now) == nil, "ahead → no checkout time")
+        let sixTwentyEight = c.date(from: DateComponents(year: 2026, month: 6, day: 18, hour: 16, minute: 28))!
+        check(TimeFmt.clock(sixTwentyEight, calendar: madrid) == "16:28", "clock formats 16:28",
+              TimeFmt.clock(sixTwentyEight, calendar: madrid))
+
         print("chrono state parsing:")
         let working = TimesheetParser.parseChronoState(load("chrono_working.html"))
         check(working.status == .working, "working status", working.status)

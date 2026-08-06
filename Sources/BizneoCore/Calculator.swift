@@ -40,6 +40,16 @@ public enum Calculator {
         }
     }
 
+    /// Wall-clock time at which today's target is reached, assuming you keep
+    /// working without further breaks. `nil` when already at/over target (i.e.
+    /// the projected balance is non-negative). Uses the projected balance so the
+    /// result is consistent with the "missing" figure shown on the Today row.
+    public static func expectedCheckout(today: PeriodStat, generatedAt: Date) -> Date? {
+        let owedMin = -today.projectedBalanceMin
+        guard owedMin > 0 else { return nil }
+        return generatedAt.addingTimeInterval(Double(owedMin) * 60)
+    }
+
     /// Build a snapshot. `now` is injectable for testing.
     public static func makeSnapshot(config: Config,
                                     hubChrono: (scheduledMin: Int, loggedMin: Int)?,

@@ -265,6 +265,9 @@ final class StatusItemController: NSObject {
         case .working:
             let since = chrono.startedAt.flatMap(clockTime(_:))
             menu.addItem(info("🟢 Working (\(modeLabel))" + (since.map { " · since \($0)" } ?? "")))
+            if let leaveBy = expectedCheckoutText() {
+                menu.addItem(info("🏁 Leave by \(leaveBy)"))
+            }
             menu.addItem(actionItem("Take break", #selector(takeBreak), enabled: !busy))
             menu.addItem(actionItem("Check out…", #selector(checkOut), enabled: !busy))
         case .paused:
@@ -390,6 +393,17 @@ final class StatusItemController: NSObject {
         let hms = parts[1].split(separator: ":")
         guard hms.count >= 2 else { return nil }
         return "\(hms[0]):\(hms[1])"
+    }
+
+    /// Wall-clock time the user can leave to hit today's target ("HH:MM"), or nil
+    /// when already at/over target. Anchored on the last refresh's snapshot, so it
+    /// stays constant between refreshes.
+    private func expectedCheckoutText() -> String? {
+        guard let s = latest,
+              let checkout = Calculator.expectedCheckout(today: s.today, generatedAt: s.generatedAt)
+        else { return nil }
+        let cal = Calculator.madridCalendar(weekStartsMonday: config.weekStartsMonday)
+        return TimeFmt.clock(checkout, calendar: cal)
     }
 
     // MARK: - Actions

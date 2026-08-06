@@ -31,6 +31,10 @@ HTML endpoints**, authenticated by reusing the Chrome session cookie.
   (cookie decrypt), `TimeFmt`.
 - `Sources/BizneoCompanion/` — executable: `main`, `StatusItemController` (menu-bar
   UI), `Probe` (`--probe`/`--dump`), `SelfTest` (`--selftest`).
+- `docs/plans/` — feature design docs, tracked. `pending/` = designed but not
+  implemented, `done/` = shipped (kept as an archive, **never deleted**). When a plan
+  ships, `git mv docs/plans/pending/<x>.md docs/plans/done/` in the same PR that
+  implements it and update the tables in `docs/plans/README.md`.
 
 ## Gotchas when editing
 
@@ -48,6 +52,8 @@ HTML endpoints**, authenticated by reusing the Chrome session cookie.
   `is-negative-balance`, `data-bulk-element`, `Until today`, and the configurable
   day-off schedule name). When Bizneo's markup changes, re-capture HARs and update
   `TimesheetParser`.
+- **Plans are tracked docs, not scratch files.** New feature plans go straight to
+  `docs/plans/pending/`, never the repo root.
 
 ## Data / privacy
 
@@ -60,3 +66,5 @@ HTML endpoints**, authenticated by reusing the Chrome session cookie.
   the repo). Don't hardcode a real tenant/userId.
 - `--probe` hits the live Bizneo session (needs Chrome cookie + Keychain prompt +
   network); `--selftest` does not.
+- Plans in `docs/plans/` are public like the fixtures: no real tenant/`userId`, no
+  absolute local paths, no real project or people names.

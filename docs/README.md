@@ -1,5 +1,11 @@
 # docs/
 
+- **[`plans/`](plans/README.md)** — feature design docs (`plans/pending/` = not built
+  yet, `plans/done/` = shipped).
+- Product images live directly in this folder — see below.
+
+## Images
+
 Drop product images here. The root `README.md` references **`docs/screenshot.png`**
 (currently commented out) — add that file and uncomment the image line near the top
 of the README to show it.
