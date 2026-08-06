@@ -28,6 +28,7 @@ Bizneo Companion puts your running time balance right in the menu bar and lets y
           🟢 This year    ahead  14:30   │
           ─────────────────────────────  │
           🟢 Working (telework) · 09:48  │
+          🏁 Leave by 18:15              │
              Take break                  │
              Check out…                  │
           ─────────────────────────────  │
@@ -55,6 +56,7 @@ Bizneo Companion puts your running time balance right in the menu bar and lets y
 |---|---|
 | 📊 **Today / week / month / year** | Running balance for each period, pending‑aware |
 | ⏯️ **Clock controls** | Check in · Take break · Resume · Check out (with confirm) |
+| 🏁 **Leave‑by time** | While clocked in, the wall‑clock time you hit today's target |
 | 🗂️ **Project picker** | Check in to a project; remembers your last one |
 | 🏠 **Telework by default** | Configurable office/telework mode |
 | 🏖️ **Day‑off aware** | Free "Fridom" Fridays don't count against you |
