@@ -354,6 +354,20 @@ final class StatusItemController: NSObject {
         doClock(.checkIn(projectIds: pid.isEmpty ? [] : [pid], telework: config.defaultTelework))
     }
 
+    // MARK: - Alerts
+
+    /// A tinted SF Symbol sized for an NSAlert's 64pt icon well.
+    /// Returns nil when the symbol is unavailable, in which case the caller leaves
+    /// `alert.icon` untouched and AppKit keeps its default.
+    private func alertIcon(_ name: String, color: NSColor) -> NSImage? {
+        guard let base = NSImage(systemSymbolName: name, accessibilityDescription: nil) else { return nil }
+        let cfg = NSImage.SymbolConfiguration(pointSize: 48, weight: .regular)
+            .applying(NSImage.SymbolConfiguration(hierarchicalColor: color))
+        let img = base.withSymbolConfiguration(cfg)
+        img?.isTemplate = false   // keep the tint; symbol images default to template
+        return img
+    }
+
     @objc private func checkOut() {
         let alert = NSAlert()
         alert.messageText = "Check out?"
@@ -361,6 +375,7 @@ final class StatusItemController: NSObject {
         alert.addButton(withTitle: "Check out")
         alert.addButton(withTitle: "Cancel")
         alert.alertStyle = .warning
+        if let icon = alertIcon("figure.walk.departure", color: .systemOrange) { alert.icon = icon }
         if alert.runModal() == .alertFirstButtonReturn {
             doClock(.checkOut)
         }
@@ -380,6 +395,8 @@ final class StatusItemController: NSObject {
                 let alert = NSAlert()
                 alert.messageText = "Clock action failed"
                 alert.informativeText = self.lastError ?? "Unknown error"
+                alert.alertStyle = .critical
+                if let icon = self.alertIcon("exclamationmark.triangle.fill", color: .systemRed) { alert.icon = icon }
                 alert.runModal()
                 self.rebuildMenu(snapshot: self.latest)
             }
