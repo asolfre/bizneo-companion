@@ -29,8 +29,9 @@ can expose `carryoverScope` in a single pass.
 
 | Plan | Shipped in |
 |---|---|
-| [`done/live-ticker.md`](done/live-ticker.md) | `d6ebbad`, `7fcbfc1` (PR #2) — reconcile today's running timer into week/month/year + smooth live tick |
-| [`done/configurable-seconds.md`](done/configurable-seconds.md) | `b317131` (PR #2) — `Config.dropdownSecondsScope` (`none`/`today`/`all`), default `today` |
+| [`done/live-ticker.md`](done/live-ticker.md) | [PR #2](https://github.com/asolfre/bizneo-companion/pull/2) — reconcile today's running timer into week/month/year + smooth live tick |
+| [`done/configurable-seconds.md`](done/configurable-seconds.md) | [PR #2](https://github.com/asolfre/bizneo-companion/pull/2) — `Config.dropdownSecondsScope` (`none`/`today`/`all`), default `today` |
+| [`done/checkout-alert-icon.md`](done/checkout-alert-icon.md) | [PR #4](https://github.com/asolfre/bizneo-companion/pull/4) — tinted SF Symbols on both `NSAlert`s via a shared `alertIcon` helper; no bundled assets |
 
 ## Writing a plan
 
@@ -38,3 +39,5 @@ can expose `carryoverScope` in a single pass.
 - These files are tracked and public: no real tenant/`userId`, no absolute local
   paths, no real project or people names. Same rule as the test fixtures.
 - Reference code with `File.swift:line` so the plan stays navigable.
+- In the Done table, cite the **PR**, not a commit hash: the row ships in the same
+  commit as the plan, and a commit can't contain its own hash.
