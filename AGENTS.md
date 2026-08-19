@@ -23,6 +23,29 @@ HTML endpoints**, authenticated by reusing the Chrome session cookie.
   synced folder (e.g. `BUILD_PATH=/tmp/bc swift build`).
 - macOS-only: links AppKit, Security, SQLite3, CommonCrypto. Won't build on Linux.
 
+## Git & GitHub for this repo
+
+- The remote is the SSH alias `git@github-asolfre:asolfre/bizneo-companion.git`
+  (defined in `~/.ssh/config`, forcing the personal key via `IdentitiesOnly yes` +
+  `IdentityFile ~/.ssh/github_asolfre`). **Don't switch it back to HTTPS:** this
+  machine's git credential helper is macOS `osxkeychain` (inherited from the Command
+  Line Tools system gitconfig, not from `~/.gitconfig`) and it resolves to a
+  different, work GitHub account, so HTTPS pushes fail with
+  `403 … denied to <work-user>`.
+- `git` is covered by that alias, but **`gh` is not** — it always uses its globally
+  active account. Before any `gh` write (`pr create`, `pr merge`, `workflow run`):
+  ```
+  gh auth switch --user asolfre      # ... do the work ...
+  gh auth switch --user <work-user>  # switch back
+  ```
+  Read-only `gh` calls against this public repo work under either account.
+- Commit identity comes from the **repo-local** `user.email`
+  (`git config --local user.email` → the `asolfre` noreply address); the global
+  `user.email` is the work one. Don't rely on the global config.
+- The `asolfre` token's scopes are `gist, read:org, repo` — **no `workflow`**. SSH
+  pushes are unaffected, but editing `.github/workflows/*` through the `gh` API needs
+  `gh auth refresh -h github.com -u asolfre -s workflow` first.
+
 ## Layout
 
 - `Package.swift` at root (SwiftPM, **no external deps**).
