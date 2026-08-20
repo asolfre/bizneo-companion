@@ -62,9 +62,17 @@ Calculator.applyCarryover(to: &snapshot, config: config)
 
 ## 5. `StatusItemController.swift` — menu bar only
 
-- The two title paths use `s.stat(for: config.barMetric)` (lines 103, 146). Change so that
-  when `barMetric == .today` **and** `carryoverScope != .none`, they use
-  `s.todayCarryover ?? s.today` instead.
+- There is a single bar-title path: `barContent()` (`StatusItemController.swift:187`),
+  which reads `s.stat(for: config.barMetric)` at line **196**. Change it so that when
+  `barMetric == .today` **and** `carryoverScope != .none` it uses
+  `s.todayCarryover ?? s.today` instead. (The two separate title paths this plan was
+  first written against were collapsed into `barContent()` by the menu-bar clock-states
+  work — see `docs/plans/done/menu-bar-clock-states.md`.)
+- **Do not touch the early return above it** (`:193`): when
+  `state.needsAttention && config.enableClockActions`, `barContent()` replaces the
+  balance with `"Check in"` and never reads a `PeriodStat`. Carryover must apply only
+  to the fall-through path — folding a backlog into the one state whose purpose is to
+  hide the number would defeat it.
 - Everything else (dropdown `rebuildMenu`, `periodItem` rows) is unchanged — Today/Week/
   Month/Year rows stay raw.
 - Live-tick on the bar works unchanged (`todayCarryover` is a normal `PeriodStat`).

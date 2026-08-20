@@ -32,6 +32,7 @@ can expose `carryoverScope` in a single pass.
 | [`done/live-ticker.md`](done/live-ticker.md) | [PR #2](https://github.com/asolfre/bizneo-companion/pull/2) — reconcile today's running timer into week/month/year + smooth live tick |
 | [`done/configurable-seconds.md`](done/configurable-seconds.md) | [PR #2](https://github.com/asolfre/bizneo-companion/pull/2) — `Config.dropdownSecondsScope` (`none`/`today`/`all`), default `today` |
 | [`done/checkout-alert-icon.md`](done/checkout-alert-icon.md) | [PR #4](https://github.com/asolfre/bizneo-companion/pull/4) — tinted SF Symbols on both `NSAlert`s via a shared `alertIcon` helper; no bundled assets |
+| [`done/menu-bar-clock-states.md`](done/menu-bar-clock-states.md) | [PR #6](https://github.com/asolfre/bizneo-companion/pull/6) — `BarState` splits Bizneo's single `.stopped` into not-checked-in / checked-out-early / done / off-duty; SF Symbol status icons, orange "Check in" warning |
 
 ## Writing a plan
 
@@ -41,3 +42,6 @@ can expose `carryoverScope` in a single pass.
 - Reference code with `File.swift:line` so the plan stays navigable.
 - In the Done table, cite the **PR**, not a commit hash: the row ships in the same
   commit as the plan, and a commit can't contain its own hash.
+- Never write a PR number before the PR exists. If the plan's branch is implemented
+  but not yet opened, mark the row *unreleased* with the branch name and replace it
+  with the real `[PR #N](…)` link once the PR is up.

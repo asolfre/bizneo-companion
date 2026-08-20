@@ -139,6 +139,50 @@ enum SelfTest {
         check(stopped.shiftId == "17724806", "stopped shiftId", stopped.shiftId as Any)
         check(stopped.projects.count == 8, "stopped 8 projects", stopped.projects.count)
 
+        print("bar state (menu-bar clock states):")
+        // A normal workday: 8h expected, nothing logged yet.
+        let freshDay = PeriodStat(label: "Today", loggedMin: 0, expectedMin: 480, officialBalanceMin: -480)
+        check(BarState.derive(chrono: working.status, today: freshDay) == .working,
+              "working fixture → .working", BarState.derive(chrono: working.status, today: freshDay))
+        check(BarState.derive(chrono: paused.status, today: freshDay) == .onBreak,
+              "paused fixture → .onBreak", BarState.derive(chrono: paused.status, today: freshDay))
+        // The state this whole feature exists for: stopped, hours owed, nothing logged.
+        check(BarState.derive(chrono: stopped.status, today: freshDay) == .notCheckedIn,
+              "stopped + nothing logged → .notCheckedIn", BarState.derive(chrono: stopped.status, today: freshDay))
+        check(BarState.derive(chrono: stopped.status, today: freshDay).needsAttention,
+              ".notCheckedIn needs attention")
+        // Stopped after logging some time but short of the target.
+        let short = PeriodStat(label: "Today", loggedMin: 400, expectedMin: 480, officialBalanceMin: -80)
+        check(BarState.derive(chrono: stopped.status, today: short) == .checkedOutEarly,
+              "stopped + partial log → .checkedOutEarly", BarState.derive(chrono: stopped.status, today: short))
+        check(!BarState.derive(chrono: stopped.status, today: short).needsAttention,
+              ".checkedOutEarly stays quiet")
+        // Target met → calm, even though the clock is off.
+        let complete = PeriodStat(label: "Today", loggedMin: 480, expectedMin: 480, officialBalanceMin: 0)
+        check(BarState.derive(chrono: stopped.status, today: complete) == .doneForToday,
+              "stopped + target met → .doneForToday", BarState.derive(chrono: stopped.status, today: complete))
+        // Pending changes count: they're what closes the gap here, so no warning.
+        let viaPending = PeriodStat(label: "Today", loggedMin: 0, expectedMin: 480,
+                                    officialBalanceMin: -480, pendingDeltaMin: 480)
+        check(BarState.derive(chrono: stopped.status, today: viaPending) == .doneForToday,
+              "pending change closes today → .doneForToday", BarState.derive(chrono: stopped.status, today: viaPending))
+        // Weekend / holiday / company day off: Calculator zeroes expected → never nag.
+        let dayOff = PeriodStat(label: "Today", loggedMin: 0, expectedMin: 0, officialBalanceMin: 0)
+        check(BarState.derive(chrono: stopped.status, today: dayOff) == .offDuty,
+              "no expected hours → .offDuty", BarState.derive(chrono: stopped.status, today: dayOff))
+        check(BarState.derive(chrono: .unknown, today: freshDay) == .unknown, "unknown chrono → .unknown")
+        check(BarState.derive(chrono: nil, today: freshDay) == .unknown, "no chrono yet → .unknown")
+        // Today drives the state even when the bar shows another period's number.
+        // (Calculator doesn't populate `chrono` — BizneoClient does, after parsing
+        // the hub_chrono fragment — so attach it the same way here.)
+        var mixed = snap
+        mixed.today = freshDay
+        mixed.chrono = stopped
+        mixed.week = PeriodStat(label: "This week", officialBalanceMin: 120)   // a "good" week
+        check(mixed.stat(for: .week).projectedBalanceMin > 0, "bar would show a green weekly total",
+              mixed.stat(for: .week).projectedBalanceMin)
+        check(mixed.barState == .notCheckedIn, "Snapshot.barState reads today, not barMetric", mixed.barState)
+
         print("year aggregation + bar metric:")
         // day-off corrected sum of the June fixture (used as a synthetic "past month").
         let monthSum = Calculator.dayOffCorrectedSum(days: days, dayOffNames: ["Fridom"])
