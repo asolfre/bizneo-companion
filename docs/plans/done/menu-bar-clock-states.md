@@ -106,6 +106,17 @@ image and the title:
 
 - `button.image` + `imagePosition = .imageLeading`; **`image = nil`** on `offDuty`
   and on the icon-less path, or a stale icon persists.
+- **The gap between icon and text has to live inside the image.** `imageHugsTitle`
+  places the image flush against the title, so the icon collides with the balance's
+  leading `−`; `NSButton` on macOS has no image/title spacing property
+  (`imageEdgeInsets` is UIKit-only). So a 4pt transparent trailing pad is drawn into
+  a copy of the symbol (`padded`, `StatusItemController.swift:257`) and
+  `imageHugsTitle` stays `true`, making that pad the only gap. Simply turning hugging
+  off is unreliable: the image then goes to the button's leading edge with the title
+  centred in the remainder, and a `variableLength` status item sizes to fit, so the
+  two can end up adjacent anyway. Padding is applied **only when there is a title** —
+  the icon-only loading and error states would otherwise sit off-centre. The copy
+  carries `isTemplate` over, so tinting still works.
 - `SymbolConfiguration(pointSize: 12, weight: .semibold)` to sit correctly next to
   the 13pt semibold monospaced-digit title.
 - `isTemplate = true` for every monochrome state, so icons follow menu-bar tint,

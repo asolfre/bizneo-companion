@@ -16,8 +16,9 @@ surface it to users.
   (`CFBundleVersion` + `CFBundleShortVersionString`, both `1.0`).
 - Swift code never reads a version. `main.swift` handles
   `--selftest` / `--probe` / `--once` / `--dump` but has no `--version`.
-- Menu is built in `StatusItemController.rebuildMenu` (`StatusItemController.swift:162`);
-  header is `header("Bizneo Companion")` at lines 167 and 193.
+- Menu is built in `StatusItemController.rebuildMenu` (`StatusItemController.swift:271`);
+  the header is `header("Bizneo Companion")` at lines 276 (snapshot path) and 302
+  (error path).
 
 ## 1. New file `Sources/BizneoCore/AppInfo.swift` (canonical source)
 ```swift
@@ -40,7 +41,7 @@ if args.contains("--version") || args.contains("-v") {
 (`BizneoCore` is already imported.)
 
 ## 3. `Sources/BizneoCompanion/StatusItemController.swift` — version in menu header
-Update **both** header call sites (lines **167** and **193**):
+Update **both** header call sites (lines **276** and **302**):
 ```swift
 menu.addItem(header("Bizneo Companion v\(AppInfo.version)"))
 ```
@@ -79,8 +80,8 @@ check(AppInfo.version.range(of: #"^\d+\.\d+"#, options: .regularExpression) != n
 - Open the app -> menu header reads **"Bizneo Companion v0.1.0"**
 
 ## Notes / heads-up
-- Two files reference the header string; both get the version. The loading/error
-  pre-data state (line 200) still says plain "Bizneo Companion" — left as-is
-  (open question: version it too?).
+- There are exactly two header call sites — the snapshot path (276) and the error
+  path (302) — and both get the version. The loading path (`:309`) renders only
+  `info("Loading…")` with no header, so there is nothing else to decide.
 - This is additive; no existing magic numbers change, so `ParserTests`/`SelfTest`
   fixture assertions are unaffected.

@@ -34,6 +34,11 @@ isn't deallocated; reused on reopen.
 
 ### Sections & controls
 
+The authoritative field list is `Config`'s custom `init(from:)`
+(`Sources/BizneoCore/Config.swift:82-101`) — every key decoded there needs a control
+here. Re-check it before building the form; fields added by plans that ship in the
+meantime will not be listed below.
+
 - **Account**
   - `tenant` — `NSTextField`
   - `userId` — `NSTextField`
@@ -52,6 +57,13 @@ isn't deallocated; reused on reopen.
   - `weekStartsMonday` — checkbox
   - `includePending` — checkbox
   - `enableYearTotal` — checkbox
+  - `liveTick` — checkbox ("count up between refreshes")
+  - `barShowSecondsWhileWorking` — checkbox (only meaningful with `liveTick` on)
+  - `dropdownSecondsScope` — `NSPopUpButton` (None / Today / All)
+  - `carryoverScope` — `NSPopUpButton` (None / Week / Month / Year). **Only if
+    [`configurable-carryover-scope.md`](configurable-carryover-scope.md) has shipped**;
+    that is the reason this plan is ordered after it. Omit the row if the field
+    doesn't exist yet.
 
 - **Clock**
   - `enableClockActions` — checkbox
@@ -71,7 +83,9 @@ isn't deallocated; reused on reopen.
   - `manualCookie` — `NSSecureTextField`
   - **Open config file…** button (reveals the raw JSON for power users)
 
-- **Footer:** Save / Cancel + app version label.
+- **Footer:** Save / Cancel + app version label. The label needs `AppInfo.version`
+  from [`versioning.md`](versioning.md); if that plan hasn't shipped, drop the label
+  rather than hardcoding a second version string.
 
 ### Validation
 
