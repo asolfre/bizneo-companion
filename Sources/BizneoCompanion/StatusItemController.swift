@@ -208,14 +208,19 @@ final class StatusItemController: NSObject {
 
     // MARK: - Status item rendering
 
+    /// Gap between the state icon and the balance text, in points.
+    private static let iconTitleGap: CGFloat = 4
+
     /// Draw the status item: leading SF Symbol plus the balance text.
     private func setStatus(look: BarLook, text: String, color: NSColor, dimText: Bool) {
         guard let button = statusItem.button else { return }
         var title = text
         if let name = look.symbol, let img = barIcon(name, tint: look.tint, description: look.label) {
-            button.image = img
+            // Padding only when there's a title to keep clear of; an icon-only state
+            // would otherwise sit visibly off-centre.
+            button.image = title.isEmpty ? img : padded(img, trailing: Self.iconTitleGap)
             button.imagePosition = title.isEmpty ? .imageOnly : .imageLeading
-            button.imageHugsTitle = true
+            button.imageHugsTitle = true   // the baked-in padding is then the only gap
         } else {
             // No symbol, or unavailable on this macOS: fall back to the emoji glyph.
             button.image = nil
@@ -243,6 +248,22 @@ final class StatusItemController: NSObject {
         img.isTemplate = (tint == nil)   // tinted images must opt out of templating
         img.accessibilityDescription = description
         return img
+    }
+
+    /// A copy of `img` with transparent padding on its trailing edge, so the icon
+    /// doesn't collide with the balance's leading "−". NSButton on macOS has no
+    /// image/title spacing property (`imageEdgeInsets` is UIKit-only), so the gap
+    /// has to live inside the image itself.
+    private func padded(_ img: NSImage, trailing: CGFloat) -> NSImage {
+        let size = NSSize(width: img.size.width + trailing, height: img.size.height)
+        let out = NSImage(size: size, flipped: false) { _ in
+            img.draw(at: .zero, from: .zero, operation: .sourceOver, fraction: 1)
+            return true
+        }
+        // Template images draw as black + alpha, so the copy re-tints just the same.
+        out.isTemplate = img.isTemplate
+        out.accessibilityDescription = img.accessibilityDescription
+        return out
     }
 
     // MARK: - Menu
