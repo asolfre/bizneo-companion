@@ -31,6 +31,7 @@ can expose `carryoverScope` in a single pass.
 |---|---|
 | [`done/live-ticker.md`](done/live-ticker.md) | [PR #2](https://github.com/asolfre/bizneo-companion/pull/2) — reconcile today's running timer into week/month/year + smooth live tick |
 | [`done/configurable-seconds.md`](done/configurable-seconds.md) | [PR #2](https://github.com/asolfre/bizneo-companion/pull/2) — `Config.dropdownSecondsScope` (`none`/`today`/`all`), default `today` |
+| [`done/expected-checkout-time.md`](done/expected-checkout-time.md) | [PR #3](https://github.com/asolfre/bizneo-companion/pull/3) — `🏁 Leave by HH:MM` in the working clock section; `Calculator.expectedCheckout` + `TimeFmt.clock`. *Plan reconstructed after the fact.* |
 | [`done/checkout-alert-icon.md`](done/checkout-alert-icon.md) | [PR #4](https://github.com/asolfre/bizneo-companion/pull/4) — tinted SF Symbols on both `NSAlert`s via a shared `alertIcon` helper; no bundled assets |
 | [`done/menu-bar-clock-states.md`](done/menu-bar-clock-states.md) | [PR #6](https://github.com/asolfre/bizneo-companion/pull/6) — `BarState` splits Bizneo's single `.stopped` into not-checked-in / checked-out-early / done / off-duty; SF Symbol status icons, orange "Check in" warning |
 
@@ -45,3 +46,6 @@ can expose `carryoverScope` in a single pass.
 - Never write a PR number before the PR exists. If the plan's branch is implemented
   but not yet opened, mark the row *unreleased* with the branch name and replace it
   with the real `[PR #N](…)` link once the PR is up.
+- If a feature ever ships without a plan, one may be reconstructed afterwards — but
+  say so at the top of the file and in the Done row. An archive that quietly implies
+  it guided the code is worse than an admitted gap.
