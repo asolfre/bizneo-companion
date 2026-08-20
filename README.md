@@ -18,24 +18,30 @@ Bizneo Companion puts your running time balance right in the menu bar and lets y
 <!-- ![Bizneo Companion in the menu bar](docs/screenshot.png) -->
 
 ```text
-        ●  −0:29          ← menu bar (red = behind · green = ahead)
-        ╰───────────────────────────────╮
-          Bizneo Companion              │
-          ─────────────────────────────  │
-          🔴 Today        missing 0:29   │
-          🟢 This week    ahead   2:11   │
-          🔴 This month   missing 1:01   │  (official −8:21, +7:20 pending)
-          🟢 This year    ahead  14:30   │
-          ─────────────────────────────  │
-          🟢 Working (telework) · 09:48  │
-          🏁 Leave by 18:15              │
-             Take break                  │
-             Check out…                  │
-          ─────────────────────────────  │
-          Pending changes (2)         ▸  │
-          ─────────────────────────────  │
-          Refresh now · Edit config · Quit
-        ╰───────────────────────────────╯
+         ▶︎  −0:29          ← menu bar (red = behind · green = ahead)
+         ╰───────────────────────────────╮
+           Bizneo Companion              │
+           ─────────────────────────────  │
+           🔴 Today        missing 0:29   │
+           🟢 This week    ahead   2:11   │
+           🔴 This month   missing 1:01   │  (official −8:21, +7:20 pending)
+           🟢 This year    ahead  14:30   │
+           ─────────────────────────────  │
+           🟢 Working (telework) · 09:48  │
+           🏁 Leave by 18:15              │
+              Take break                  │
+              Check out…                  │
+           ─────────────────────────────  │
+           Pending changes (2)         ▸  │
+           ─────────────────────────────  │
+           Refresh now · Edit config · Quit
+         ╰───────────────────────────────╯
+```
+
+…and when you forget to clock in, the bar stops showing a number at all:
+
+```text
+         ⏰  Check in       ← orange: hours expected today, timer not running
 ```
 
 ## Why you'll like it
@@ -55,6 +61,7 @@ Bizneo Companion puts your running time balance right in the menu bar and lets y
 | | |
 |---|---|
 | 📊 **Today / week / month / year** | Running balance for each period, pending‑aware |
+| ⏰ **Forgot‑to‑clock‑in warning** | The bar turns orange and says **Check in** when hours are expected today and the timer isn't running |
 | ⏯️ **Clock controls** | Check in · Take break · Resume · Check out (with confirm) |
 | 🏁 **Leave‑by time** | While clocked in, the wall‑clock time you hit today's target |
 | 🗂️ **Project picker** | Check in to a project; remembers your last one |
@@ -106,8 +113,21 @@ https://<your-company>.bizneohr.com/time-attendance/my-logs/<your-user-id>
 - **The dropdown** breaks it down by today / week / month / year. When unapproved
   edits exist you'll see `(official …, +… pending)` so you know what's provisional.
 - **Clock controls** appear based on your current state: *Check in* when you're out,
-  *Take break / Check out* while working, *Resume / Check out* on a break. The bar
-  glyph shows ● working / ⏸ on break.
+  *Take break / Check out* while working, *Resume / Check out* on a break.
+- **The bar icon tells you what the clock is doing** — and shouts when you've
+  forgotten to start it:
+
+  | Icon | Meaning | Bar shows |
+  |---|---|---|
+  | ▶︎ | Clocked in, timer running | your balance, ticking |
+  | ⏸ | On a break | your balance, frozen |
+  | ⏰ **orange** | **Not clocked in and you owe hours today** | **`Check in`** |
+  | ◼︎ | Checked out before hitting today's target | your balance |
+  | ✓ | Checked out, today complete | your balance |
+  | *(none)* | Weekend, holiday or a "Fridom" day off | your balance, dimmed |
+
+  Only the "not clocked in" state is coloured, and it's the only one that replaces
+  the number — so a forgotten check-in can't hide behind a healthy weekly total.
 
 ## Privacy & security
 

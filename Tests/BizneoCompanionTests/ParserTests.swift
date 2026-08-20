@@ -150,4 +150,57 @@ final class ParserTests: XCTestCase {
         XCTAssertNil(Calculator.expectedCheckout(
             today: PeriodStat(label: "Today", officialBalanceMin: 15), generatedAt: now))
     }
+
+    // MARK: menu-bar clock state
+
+    /// Bizneo reports "never checked in" and "checked out" as the same `.stopped`
+    /// status, so the three stopped sub-states are inferred from today's figures.
+    func testBarState() throws {
+        let working = TimesheetParser.parseChronoState(try fixture("chrono_working")).status
+        let paused = TimesheetParser.parseChronoState(try fixture("chrono_paused")).status
+        let stopped = TimesheetParser.parseChronoState(try fixture("chrono_stopped")).status
+
+        let freshDay = PeriodStat(label: "Today", loggedMin: 0, expectedMin: 480, officialBalanceMin: -480)
+        XCTAssertEqual(BarState.derive(chrono: working, today: freshDay), .working)
+        XCTAssertEqual(BarState.derive(chrono: paused, today: freshDay), .onBreak)
+
+        // The state this feature exists for.
+        XCTAssertEqual(BarState.derive(chrono: stopped, today: freshDay), .notCheckedIn)
+        XCTAssertTrue(BarState.derive(chrono: stopped, today: freshDay).needsAttention)
+
+        // Deliberate early stop: same deficit, but not a "you forgot" warning.
+        let short = PeriodStat(label: "Today", loggedMin: 400, expectedMin: 480, officialBalanceMin: -80)
+        XCTAssertEqual(BarState.derive(chrono: stopped, today: short), .checkedOutEarly)
+        XCTAssertFalse(BarState.derive(chrono: stopped, today: short).needsAttention)
+
+        let complete = PeriodStat(label: "Today", loggedMin: 480, expectedMin: 480, officialBalanceMin: 0)
+        XCTAssertEqual(BarState.derive(chrono: stopped, today: complete), .doneForToday)
+
+        // Pending (unapproved) changes count towards the target, matching the
+        // "missing" figure on the Today row.
+        let viaPending = PeriodStat(label: "Today", loggedMin: 0, expectedMin: 480,
+                                    officialBalanceMin: -480, pendingDeltaMin: 480)
+        XCTAssertEqual(BarState.derive(chrono: stopped, today: viaPending), .doneForToday)
+
+        // Weekend / holiday / company day off — Calculator zeroes expected minutes.
+        let dayOff = PeriodStat(label: "Today", loggedMin: 0, expectedMin: 0, officialBalanceMin: 0)
+        XCTAssertEqual(BarState.derive(chrono: stopped, today: dayOff), .offDuty)
+
+        XCTAssertEqual(BarState.derive(chrono: .unknown, today: freshDay), .unknown)
+        XCTAssertEqual(BarState.derive(chrono: nil, today: freshDay), .unknown)
+    }
+
+    /// A healthy weekly total (what the bar shows by default) must not mask a
+    /// forgotten check-in today.
+    func testBarStateIgnoresBarMetric() throws {
+        let stopped = TimesheetParser.parseChronoState(try fixture("chrono_stopped"))
+        var snap = Snapshot(today: PeriodStat(label: "Today", loggedMin: 0, expectedMin: 480,
+                                              officialBalanceMin: -480),
+                            week: PeriodStat(label: "This week", officialBalanceMin: 120),
+                            month: PeriodStat(label: "This month", officialBalanceMin: 300),
+                            pending: [], monthLoggedMin: nil, generatedAt: Date())
+        snap.chrono = stopped
+        XCTAssertGreaterThan(snap.stat(for: .week).projectedBalanceMin, 0)
+        XCTAssertEqual(snap.barState, .notCheckedIn)
+    }
 }

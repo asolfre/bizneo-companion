@@ -27,7 +27,7 @@ final class StatusItemController: NSObject {
     func start() {
         menu.autoenablesItems = false
         statusItem.menu = menu
-        setTitle("⏳", color: .secondaryLabelColor)
+        setStatus(look: .loading, text: "", color: .secondaryLabelColor, dimText: true)
         rebuildMenu(snapshot: nil)
         scheduleTimer()
         refresh()
@@ -44,7 +44,13 @@ final class StatusItemController: NSObject {
     // MARK: - Refresh
 
     func refresh() {
-        setTitle(currentTitleText() ?? "⏳", color: .secondaryLabelColor, dim: true)
+        // Fade the current content while the request is in flight; keep the icon so
+        // the item doesn't flicker on every refresh cycle.
+        if let c = barContent() {
+            setStatus(look: c.look, text: c.text, color: c.color, dimText: true)
+        } else {
+            setStatus(look: .loading, text: "", color: .secondaryLabelColor, dimText: true)
+        }
         Task { @MainActor in
             do {
                 let snap = try await client.refresh()
@@ -70,8 +76,11 @@ final class StatusItemController: NSObject {
     // MARK: - Live tick
 
     /// Whether the chronometer is currently running.
+    ///
+    /// Not gated on `enableClockActions`: that flag decides whether *we* may clock
+    /// in/out, but the Bizneo timer runs (and the balance grows) either way.
     private var isWorking: Bool {
-        config.enableClockActions && latest?.chrono?.status == .working
+        latest?.chrono?.status == .working
     }
 
     /// Whether displayed values should count up between refreshes.
@@ -99,9 +108,8 @@ final class StatusItemController: NSObject {
     }
 
     private func refreshTitle() {
-        guard let s = latest else { return }
-        let stat = s.stat(for: config.barMetric)
-        setTitle(clockGlyph(s.chrono) + barText(stat), color: colorForSeconds(liveSeconds(stat)))
+        guard let c = barContent() else { return }
+        setStatus(look: c.look, text: c.text, color: c.color, dimText: false)
     }
 
     private func startOrStopDisplayTimer() {
@@ -124,37 +132,117 @@ final class StatusItemController: NSObject {
         for row in periodRows { row.item.title = periodTitleString(row.stat, secondsLive: row.secondsLive) }
     }
 
-    /// Small leading glyph showing clock state: ● working, ⏸ break, (none) stopped.
-    private func clockGlyph(_ chrono: ChronoState?) -> String {
-        guard config.enableClockActions, let c = chrono else { return "" }
-        switch c.status {
-        case .working: return "● "
-        case .paused: return "⏸ "
-        default: return ""
+    // MARK: - Bar appearance
+
+    /// How a `BarState` presents in the menu bar.
+    private struct BarLook {
+        /// SF Symbol name; nil = no icon at all.
+        var symbol: String?
+        /// Emoji used when the symbol isn't available on this macOS version.
+        var fallback: String
+        /// nil = template image, i.e. it follows the menu-bar tint and dark mode.
+        /// A colour makes the icon stand out — reserved for states needing action.
+        var tint: NSColor?
+        /// Fade the balance text (states where nothing is expected of you).
+        var dim: Bool = false
+        /// Tooltip + VoiceOver description.
+        var label: String
+
+        static let loading = BarLook(symbol: "hourglass", fallback: "⏳", tint: nil, dim: true,
+                                     label: "Loading…")
+        static let error = BarLook(symbol: "exclamationmark.triangle.fill", fallback: "⚠︎",
+                                   tint: .systemOrange, label: "Couldn't reach Bizneo")
+    }
+
+    /// Icon table. The icon carries the *clock state*; the text keeps carrying the
+    /// balance sign in red/green, so the two never compete. Orange appears in the
+    /// bar only when something is actually owed.
+    private func look(for state: BarState) -> BarLook {
+        switch state {
+        case .working:
+            return BarLook(symbol: "play.circle.fill", fallback: "●", tint: nil,
+                           label: "Clocked in — timer running")
+        case .onBreak:
+            return BarLook(symbol: "pause.circle.fill", fallback: "⏸", tint: nil,
+                           label: "On a break — timer paused")
+        case .notCheckedIn:
+            return BarLook(symbol: "clock.badge.exclamationmark", fallback: "⚠︎", tint: .systemOrange,
+                           label: "Not clocked in — you owe hours today")
+        case .checkedOutEarly:
+            return BarLook(symbol: "stop.circle", fallback: "○", tint: nil, dim: true,
+                           label: "Checked out — today's target not met")
+        case .doneForToday:
+            return BarLook(symbol: "checkmark.circle", fallback: "✓", tint: nil, dim: true,
+                           label: "Checked out — today complete")
+        case .offDuty:
+            return BarLook(symbol: nil, fallback: "", tint: nil, dim: true,
+                           label: "No hours expected today")
+        case .unknown:
+            return BarLook(symbol: "questionmark.circle", fallback: "?", tint: nil, dim: true,
+                           label: "Clock state unknown — Bizneo's markup may have changed")
         }
+    }
+
+    /// Icon + text + colour for the current snapshot, or nil before the first one.
+    private func barContent() -> (look: BarLook, text: String, color: NSColor)? {
+        guard let s = latest else { return nil }
+        let state = s.barState
+        // The one state worth shouting about: swap the balance for a call to action
+        // so the item changes *shape*, not just gains a mark. Suppressed when the
+        // app may not clock in for you — then the icon alone carries the warning.
+        if state.needsAttention && config.enableClockActions {
+            return (look(for: state), "Check in", .systemOrange)
+        }
+        let stat = s.stat(for: config.barMetric)
+        return (look(for: state), barText(stat), colorForSeconds(liveSeconds(stat)))
     }
 
     private func applyError() {
         displayTimer?.invalidate()
         displayTimer = nil
-        setTitle("⚠︎", color: .systemOrange)
+        var errorLook = BarLook.error
+        if let err = lastError { errorLook.label = err }
+        setStatus(look: errorLook, text: "", color: .systemOrange, dimText: false)
         rebuildMenu(snapshot: latest)
     }
 
-    private func currentTitleText() -> String? {
-        guard let s = latest else { return nil }
-        return barText(s.stat(for: config.barMetric))
+    // MARK: - Status item rendering
+
+    /// Draw the status item: leading SF Symbol plus the balance text.
+    private func setStatus(look: BarLook, text: String, color: NSColor, dimText: Bool) {
+        guard let button = statusItem.button else { return }
+        var title = text
+        if let name = look.symbol, let img = barIcon(name, tint: look.tint, description: look.label) {
+            button.image = img
+            button.imagePosition = title.isEmpty ? .imageOnly : .imageLeading
+            button.imageHugsTitle = true
+        } else {
+            // No symbol, or unavailable on this macOS: fall back to the emoji glyph.
+            button.image = nil
+            button.imagePosition = .noImage
+            if look.symbol != nil && !look.fallback.isEmpty {
+                title = title.isEmpty ? look.fallback : look.fallback + " " + title
+            }
+        }
+        let faded = dimText || look.dim
+        button.attributedTitle = NSAttributedString(string: title, attributes: [
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .semibold),
+            .foregroundColor: faded ? color.withAlphaComponent(0.5) : color,
+        ])
+        button.toolTip = look.label
     }
 
-    // MARK: - Title
-
-    private func setTitle(_ text: String, color: NSColor, dim: Bool = false) {
-        let font = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .semibold)
-        let attrs: [NSAttributedString.Key: Any] = [
-            .font: font,
-            .foregroundColor: dim ? color.withAlphaComponent(0.5) : color,
-        ]
-        statusItem.button?.attributedTitle = NSAttributedString(string: text, attributes: attrs)
+    /// An SF Symbol sized to sit next to the 13pt title. Template unless tinted, so
+    /// it follows the menu-bar appearance (dark mode, tinting, reduce transparency).
+    /// Returns nil when the symbol is unavailable, so callers can fall back.
+    private func barIcon(_ name: String, tint: NSColor?, description: String) -> NSImage? {
+        guard let base = NSImage(systemSymbolName: name, accessibilityDescription: description) else { return nil }
+        var cfg = NSImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
+        if let tint { cfg = cfg.applying(NSImage.SymbolConfiguration(hierarchicalColor: tint)) }
+        guard let img = base.withSymbolConfiguration(cfg) else { return nil }
+        img.isTemplate = (tint == nil)   // tinted images must opt out of templating
+        img.accessibilityDescription = description
+        return img
     }
 
     // MARK: - Menu
@@ -170,9 +258,9 @@ final class StatusItemController: NSObject {
             menu.addItem(periodItem(s.month))
             if let year = s.year { menu.addItem(periodItem(year)) }
 
-            if config.enableClockActions, let chrono = s.chrono, chrono.status != .unknown {
+            if config.enableClockActions, let chrono = s.chrono {
                 menu.addItem(.separator())
-                addClockSection(chrono)
+                addClockSection(chrono, state: s.barState, today: s.today)
             }
 
             let pend = s.pending.filter { $0.proposedMin != nil }
@@ -222,7 +310,7 @@ final class StatusItemController: NSObject {
     /// `config.dropdownSecondsScope` (`none`/`today`/`all`); otherwise H:MM.
     private func periodTitleString(_ s: PeriodStat, secondsLive: Bool) -> String {
         let secs = liveSeconds(s)
-        let dot = secs < 0 ? "🔴 " : (secs > 0 ? "🟢 " : "⚪️ ")
+        let dot = secs < 0 ? Glyph.behind : (secs > 0 ? Glyph.ahead : Glyph.level)
         let verb = secs < 0 ? "missing" : "ahead"
         let showSeconds = isLive && {
             switch config.dropdownSecondsScope {
@@ -246,6 +334,21 @@ final class StatusItemController: NSObject {
 
     // MARK: - Clock (chronometer) section
 
+    /// Dropdown glyphs, in one place so every row agrees. (The menu bar itself uses
+    /// SF Symbols — see `look(for:)` — but `NSMenuItem` titles stay plain text.)
+    private enum Glyph {
+        static let behind = "🔴 "
+        static let ahead = "🟢 "
+        static let level = "⚪️ "
+        static let working = "🟢"
+        static let onBreak = "⏸"
+        static let notCheckedIn = "⚠︎"
+        static let stopped = "○"
+        static let done = "✓"
+        static let unknown = "?"
+        static let leaveBy = "🏁"
+    }
+
     /// Last project id used for check-in (persisted in UserDefaults).
     private var lastProjectId: String? {
         get { UserDefaults.standard.string(forKey: "lastProjectId") }
@@ -259,24 +362,43 @@ final class StatusItemController: NSObject {
         return projects.first(where: { $0.id == id })?.name ?? "project \(id)"
     }
 
-    private func addClockSection(_ chrono: ChronoState) {
+    /// One-line summary of a stopped clock. Bizneo reports "never checked in" and
+    /// "checked out" as the same `.stopped` status, so `BarState` is what tells
+    /// "you forgot" apart from "you're done".
+    private func stoppedSummary(_ state: BarState, today: PeriodStat) -> String {
+        let missing = TimeFmt.plain(max(0, -today.projectedBalanceMin))
+        switch state {
+        case .notCheckedIn:
+            return "\(Glyph.notCheckedIn) Not clocked in · missing \(missing) today"
+        case .checkedOutEarly:
+            return "\(Glyph.stopped) Checked out · logged \(TimeFmt.plain(today.loggedMin)), missing \(missing)"
+        case .doneForToday:
+            return "\(Glyph.done) Checked out · today complete"
+        case .offDuty:
+            return "\(Glyph.stopped) No hours expected today"
+        default:
+            return "\(Glyph.stopped) Not clocked in"   // unreachable: clock is running
+        }
+    }
+
+    private func addClockSection(_ chrono: ChronoState, state: BarState, today: PeriodStat) {
         let busy = clockBusy
-        switch chrono.status {
+        switch state {
         case .working:
             let since = chrono.startedAt.flatMap(clockTime(_:))
-            menu.addItem(info("🟢 Working (\(modeLabel))" + (since.map { " · since \($0)" } ?? "")))
+            menu.addItem(info("\(Glyph.working) Working (\(modeLabel))" + (since.map { " · since \($0)" } ?? "")))
             if let leaveBy = expectedCheckoutText() {
-                menu.addItem(info("🏁 Leave by \(leaveBy)"))
+                menu.addItem(info("\(Glyph.leaveBy) Leave by \(leaveBy)"))
             }
             menu.addItem(actionItem("Take break", #selector(takeBreak), enabled: !busy))
             menu.addItem(actionItem("Check out…", #selector(checkOut), enabled: !busy))
-        case .paused:
+        case .onBreak:
             let since = chrono.startedAt.flatMap(clockTime(_:))
-            menu.addItem(info("⏸ On break" + (since.map { " · since \($0)" } ?? "")))
+            menu.addItem(info("\(Glyph.onBreak) On break" + (since.map { " · since \($0)" } ?? "")))
             menu.addItem(actionItem("Resume", #selector(resumeWork), enabled: !busy))
             menu.addItem(actionItem("Check out…", #selector(checkOut), enabled: !busy))
-        case .stopped:
-            menu.addItem(info("○ Not clocked in"))
+        case .notCheckedIn, .checkedOutEarly, .doneForToday, .offDuty:
+            menu.addItem(info(stoppedSummary(state, today: today)))
             // Quick check-in with the last-used (or configured default) project.
             let quickId = lastProjectId ?? config.defaultProjectId
             let quick = actionItem("Check in · \(projectName(quickId, in: chrono.projects)) (\(modeLabel))",
@@ -298,7 +420,9 @@ final class StatusItemController: NSObject {
             checkIn.submenu = sub
             menu.addItem(checkIn)
         case .unknown:
-            break
+            // Previously the whole section was hidden here, which made a Bizneo
+            // markup change impossible to spot. Say so instead.
+            menu.addItem(info("\(Glyph.unknown) Clock state unknown"))
         }
         if busy { menu.addItem(info("   …working…")) }
     }
