@@ -11,6 +11,19 @@ public enum DropdownSecondsScope: String, Codable {
     case none, today, all
 }
 
+/// Which backlog the "Leave by" time clears.
+///
+/// `none` (default) = today's target only, i.e. leave when today's own balance
+/// reaches zero. The others fold in the whole period's deficit, so "Leave by"
+/// answers "when have I cleared the week/month/year?" instead.
+///
+/// This deliberately does **not** touch the menu-bar number: that is `barMetric`'s
+/// job, and a scope applied there would render exactly what `barMetric` already
+/// renders. See `docs/plans/done/leave-by-scope.md`.
+public enum LeaveByScope: String, Codable {
+    case none, week, month, year
+}
+
 /// User-editable configuration, persisted to
 /// `~/Library/Application Support/BizneoCompanion/config.json`.
 public struct Config: Codable {
@@ -39,6 +52,8 @@ public struct Config: Codable {
     public var barShowSecondsWhileWorking: Bool
     /// Which dropdown rows show live seconds while working: `none`/`today`/`all`.
     public var dropdownSecondsScope: DropdownSecondsScope
+    /// Which backlog the "Leave by" time clears: `none`/`week`/`month`/`year`.
+    public var leaveByScope: LeaveByScope
     /// Optional manual cookie override: `_hcmex_key=...; device_id=...`.
     /// When set, Chrome/Keychain is bypassed entirely.
     public var manualCookie: String?
@@ -58,6 +73,7 @@ public struct Config: Codable {
                 liveTick: Bool = true,
                 barShowSecondsWhileWorking: Bool = false,
                 dropdownSecondsScope: DropdownSecondsScope = .today,
+                leaveByScope: LeaveByScope = .none,
                 manualCookie: String? = nil) {
         self.tenant = tenant
         self.userId = userId
@@ -74,6 +90,7 @@ public struct Config: Codable {
         self.liveTick = liveTick
         self.barShowSecondsWhileWorking = barShowSecondsWhileWorking
         self.dropdownSecondsScope = dropdownSecondsScope
+        self.leaveByScope = leaveByScope
         self.manualCookie = manualCookie
     }
 
@@ -97,6 +114,7 @@ public struct Config: Codable {
         liveTick = try c.decodeIfPresent(Bool.self, forKey: .liveTick) ?? d.liveTick
         barShowSecondsWhileWorking = try c.decodeIfPresent(Bool.self, forKey: .barShowSecondsWhileWorking) ?? d.barShowSecondsWhileWorking
         dropdownSecondsScope = try c.decodeIfPresent(DropdownSecondsScope.self, forKey: .dropdownSecondsScope) ?? d.dropdownSecondsScope
+        leaveByScope = try c.decodeIfPresent(LeaveByScope.self, forKey: .leaveByScope) ?? d.leaveByScope
         manualCookie = try c.decodeIfPresent(String.self, forKey: .manualCookie) ?? d.manualCookie
     }
 

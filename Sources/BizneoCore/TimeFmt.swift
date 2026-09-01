@@ -65,4 +65,16 @@ public enum TimeFmt {
         let c = calendar.dateComponents([.hour, .minute], from: date)
         return String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
     }
+
+    /// As `clock`, but suffixed `(+Nd)` when `date` lands on a later calendar day
+    /// than `reference`. A large backlog can push a checkout time past midnight,
+    /// where a bare "02:14" would read as an early-morning time *today* — the one
+    /// day it certainly isn't.
+    public static func clock(_ date: Date, since reference: Date, calendar: Calendar) -> String {
+        let base = clock(date, calendar: calendar)
+        let days = calendar.dateComponents([.day],
+                                           from: calendar.startOfDay(for: reference),
+                                           to: calendar.startOfDay(for: date)).day ?? 0
+        return days > 0 ? "\(base) (+\(days)d)" : base
+    }
 }

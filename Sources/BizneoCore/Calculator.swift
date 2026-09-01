@@ -55,12 +55,29 @@ public enum Calculator {
         return out.sorted { $0.dateString < $1.dateString }
     }
 
-    /// Wall-clock time at which today's target is reached, assuming you keep
+    /// The period whose backlog "Leave by" should clear, per `Config.leaveByScope`.
+    /// `.year` falls back to the month when the year total is disabled, matching
+    /// `Snapshot.stat(for:)`.
+    public static func leaveByStat(_ snapshot: Snapshot, scope: LeaveByScope) -> PeriodStat {
+        switch scope {
+        case .none:  return snapshot.today
+        case .week:  return snapshot.week
+        case .month: return snapshot.month
+        case .year:  return snapshot.year ?? snapshot.month
+        }
+    }
+
+    /// Wall-clock time at which `stat`'s target is reached, assuming you keep
     /// working without further breaks. `nil` when already at/over target (i.e.
     /// the projected balance is non-negative). Uses the projected balance so the
-    /// result is consistent with the "missing" figure shown on the Today row.
-    public static func expectedCheckout(today: PeriodStat, generatedAt: Date) -> Date? {
-        let owedMin = -today.projectedBalanceMin
+    /// result is consistent with the "missing" figure shown on the row.
+    ///
+    /// Any period may be passed, not just today: week/month/year all fold today's
+    /// running session in via the reconcile step, so they tick at the same rate as
+    /// `today` and the same cancellation holds — the answer stays constant between
+    /// refreshes regardless of scope.
+    public static func expectedCheckout(stat: PeriodStat, generatedAt: Date) -> Date? {
+        let owedMin = -stat.projectedBalanceMin
         guard owedMin > 0 else { return nil }
         return generatedAt.addingTimeInterval(Double(owedMin) * 60)
     }

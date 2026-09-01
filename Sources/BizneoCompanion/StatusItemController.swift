@@ -557,15 +557,18 @@ final class StatusItemController: NSObject {
         return "\(hms[0]):\(hms[1])"
     }
 
-    /// Wall-clock time the user can leave to hit today's target ("HH:MM"), or nil
-    /// when already at/over target. Anchored on the last refresh's snapshot, so it
-    /// stays constant between refreshes.
+    /// Wall-clock time the user can leave to clear the configured backlog ("HH:MM",
+    /// or "HH:MM (+1d)" when it spills past midnight), or nil when already at/over
+    /// target. Anchored on the last refresh's snapshot, so it stays constant
+    /// between refreshes. Scope comes from `Config.leaveByScope` — `.none` (the
+    /// default) means today's own target, as before.
     private func expectedCheckoutText() -> String? {
-        guard let s = latest,
-              let checkout = Calculator.expectedCheckout(today: s.today, generatedAt: s.generatedAt)
+        guard let s = latest else { return nil }
+        let stat = Calculator.leaveByStat(s, scope: config.leaveByScope)
+        guard let checkout = Calculator.expectedCheckout(stat: stat, generatedAt: s.generatedAt)
         else { return nil }
         let cal = Calculator.madridCalendar(weekStartsMonday: config.weekStartsMonday)
-        return TimeFmt.clock(checkout, calendar: cal)
+        return TimeFmt.clock(checkout, since: s.generatedAt, calendar: cal)
     }
 
     // MARK: - Actions
