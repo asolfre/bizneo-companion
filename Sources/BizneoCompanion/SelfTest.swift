@@ -106,17 +106,45 @@ enum SelfTest {
 
         print("checkout time (expected leave):")
         // Today is 0:29 behind (projected) and now=12:00 → leave by 12:29.
-        let checkout = Calculator.expectedCheckout(today: snap.today, generatedAt: snap.generatedAt)
+        let checkout = Calculator.expectedCheckout(stat: snap.today, generatedAt: snap.generatedAt)
         check(checkout == now.addingTimeInterval(29*60), "checkout == now + 0:29", checkout as Any)
         let madrid = Calculator.madridCalendar(weekStartsMonday: true)
         check(checkout.map { TimeFmt.clock($0, calendar: madrid) } == "12:29", "checkout clock == 12:29",
               checkout.map { TimeFmt.clock($0, calendar: madrid) } as Any)
         // Non-negative (at/over target) → no checkout time.
         var aheadToday = PeriodStat(label: "Today"); aheadToday.officialBalanceMin = 15
-        check(Calculator.expectedCheckout(today: aheadToday, generatedAt: now) == nil, "ahead → no checkout time")
+        check(Calculator.expectedCheckout(stat: aheadToday, generatedAt: now) == nil, "ahead → no checkout time")
         let sixTwentyEight = c.date(from: DateComponents(year: 2026, month: 6, day: 18, hour: 16, minute: 28))!
         check(TimeFmt.clock(sixTwentyEight, calendar: madrid) == "16:28", "clock formats 16:28",
               TimeFmt.clock(sixTwentyEight, calendar: madrid))
+
+        print("leave-by scope:")
+        // .none keeps today's own target; the other scopes clear that period's backlog.
+        check(Calculator.leaveByStat(snap, scope: .none).label == "Today", "scope .none → today")
+        check(Calculator.leaveByStat(snap, scope: .week).label == "This week", "scope .week → week")
+        check(Calculator.leaveByStat(snap, scope: .month).label == "This month", "scope .month → month")
+        // .year falls back to month when the year total is off, like Snapshot.stat(for:).
+        check(Calculator.leaveByStat(snap, scope: .year).label == "This month", "scope .year → month when year nil")
+        var withYear = snap; withYear.year = PeriodStat(label: "This year", officialBalanceMin: -1000)
+        check(Calculator.leaveByStat(withYear, scope: .year).label == "This year", "scope .year → year when present")
+        // Week projected = -460 + 440 = -20 → 12:20, a different answer from today's 12:29.
+        let weekLeave = Calculator.expectedCheckout(stat: Calculator.leaveByStat(snap, scope: .week),
+                                                    generatedAt: snap.generatedAt)
+        check(weekLeave.map { TimeFmt.clock($0, calendar: madrid) } == "12:20", "week scope → leave by 12:20",
+              weekLeave.map { TimeFmt.clock($0, calendar: madrid) } as Any)
+        // Month projected = -367 + 440 = +73, i.e. already ahead → no time at all.
+        check(Calculator.expectedCheckout(stat: Calculator.leaveByStat(snap, scope: .month),
+                                          generatedAt: snap.generatedAt) == nil,
+              "month scope → ahead, no leave-by")
+        // A backlog past midnight must not render as a bare early-morning time.
+        var deep = PeriodStat(label: "This month"); deep.officialBalanceMin = -(13 * 60)
+        let spill = Calculator.expectedCheckout(stat: deep, generatedAt: now)!
+        check(TimeFmt.clock(spill, calendar: madrid) == "01:00", "raw clock loses the day",
+              TimeFmt.clock(spill, calendar: madrid))
+        check(TimeFmt.clock(spill, since: now, calendar: madrid) == "01:00 (+1d)", "spill marked (+1d)",
+              TimeFmt.clock(spill, since: now, calendar: madrid))
+        check(TimeFmt.clock(sixTwentyEight, since: now, calendar: madrid) == "16:28", "same day → no suffix",
+              TimeFmt.clock(sixTwentyEight, since: now, calendar: madrid))
 
         print("chrono state parsing:")
         let working = TimesheetParser.parseChronoState(load("chrono_working.html"))
@@ -228,6 +256,25 @@ enum SelfTest {
         check(dc.defaultTelework == true, "default telework == true")
         check(dc.enableYearTotal == true, "default enableYearTotal == true")
         check(dc.dropdownSecondsScope == .today, "default dropdownSecondsScope == today", dc.dropdownSecondsScope.rawValue)
+        check(dc.leaveByScope == .none, "default leaveByScope == none", dc.leaveByScope.rawValue)
+        // Config has a hand-written init(from:); a field missing a decodeIfPresent line
+        // there survives compilation and silently resets on every load. Round-trip it.
+        var custom = Config(); custom.leaveByScope = .month; custom.barMetric = .today
+        if let data = try? JSONEncoder().encode(custom),
+           let back = try? JSONDecoder().decode(Config.self, from: data) {
+            check(back.leaveByScope == .month, "leaveByScope survives encode→decode", back.leaveByScope.rawValue)
+            check(back.barMetric == .today, "barMetric survives encode→decode", back.barMetric.rawValue)
+        } else {
+            check(false, "config round-trips")
+        }
+        // An old config.json predating the field must still load, at the default.
+        if let legacy = "{\"tenant\":\"x\",\"userId\":\"1\"}".data(using: .utf8),
+           let old = try? JSONDecoder().decode(Config.self, from: legacy) {
+            check(old.leaveByScope == .none, "config without leaveByScope defaults to none", old.leaveByScope.rawValue)
+            check(old.tenant == "x", "legacy config still decodes its own keys", old.tenant)
+        } else {
+            check(false, "legacy config decodes")
+        }
 
         // Guards the constant build_app.sh scrapes for the Info.plist version.
         print("app info:")

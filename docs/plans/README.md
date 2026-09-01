@@ -15,13 +15,9 @@ git mv docs/plans/pending/<name>.md docs/plans/done/
 
 ## Pending
 
-Suggested order — smallest/least invasive first, and #2 after #1 so the settings UI
-can expose `carryoverScope` in a single pass.
-
 | # | Plan | Summary |
 |---|---|---|
-| 1 | [`pending/configurable-carryover-scope.md`](pending/configurable-carryover-scope.md) | New `carryoverScope` config (`none`/`week`/`month`/`year`) folding a backlog into the menu-bar **Today** figure. |
-| 2 | [`pending/add-settings-screen.md`](pending/add-settings-screen.md) | Native Settings window replacing "Edit configuration…" (raw JSON), with launch-at-login and connection test. Largest of the two. |
+| 1 | [`pending/add-settings-screen.md`](pending/add-settings-screen.md) | Native Settings window replacing "Edit configuration…" (raw JSON), with launch-at-login and connection test. |
 
 ## Done
 
@@ -34,6 +30,7 @@ can expose `carryoverScope` in a single pass.
 | [`done/menu-bar-clock-states.md`](done/menu-bar-clock-states.md) | [PR #6](https://github.com/asolfre/bizneo-companion/pull/6) — `BarState` splits Bizneo's single `.stopped` into not-checked-in / checked-out-early / done / off-duty; SF Symbol status icons, orange "Check in" warning |
 | [`done/versioning.md`](done/versioning.md) | [PR #8](https://github.com/asolfre/bizneo-companion/pull/8) — `AppInfo` as the single source of truth, scraped by `build_app.sh` for the Info.plist; `--version` flag and version in the menu header. First tagged release, v0.1.0. |
 | [`done/past-month-change-requests.md`](done/past-month-change-requests.md) | [PR #9](https://github.com/asolfre/bizneo-companion/pull/9) — `MonthTotal` retains each past month's requests so the "Pending changes" list stops emptying out after a month rollover; dedup/sort extracted to `Calculator.mergePending` to make it testable |
+| [`done/leave-by-scope.md`](done/leave-by-scope.md) | *unreleased* — `feature/leave-by-scope` — `Config.leaveByScope` picks which backlog the "Leave by" line clears, with a `(+Nd)` suffix when it spills past midnight. *Rewritten mid-flight: the original `carryoverScope` design targeted the menu bar and was a no-op — the plan records why.* |
 
 ## Writing a plan
 

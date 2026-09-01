@@ -60,16 +60,18 @@ meantime will not be listed below.
   - `liveTick` — checkbox ("count up between refreshes")
   - `barShowSecondsWhileWorking` — checkbox (only meaningful with `liveTick` on)
   - `dropdownSecondsScope` — `NSPopUpButton` (None / Today / All)
-  - `carryoverScope` — `NSPopUpButton` (None / Week / Month / Year). **Only if
-    [`configurable-carryover-scope.md`](configurable-carryover-scope.md) has shipped**;
-    that is the reason this plan is ordered after it. Omit the row if the field
-    doesn't exist yet.
 
 - **Clock**
   - `enableClockActions` — checkbox
   - `defaultTelework` — segmented (Office / Telework)
   - `defaultProjectId` — `NSPopUpButton` ("None" + projects from latest snapshot) +
     "Custom ID…" fallback
+  - `leaveByScope` — `NSPopUpButton` (None / Week / Month / Year), labelled for
+    what it does: which backlog the "Leave by" time clears. Shipped in
+    [`done/leave-by-scope.md`](../done/leave-by-scope.md), so the field exists.
+    (This was `carryoverScope` in earlier drafts of this plan and sat under
+    *Display*, because it was meant to change the menu-bar number; that design was
+    dropped as a no-op. It belongs with the clock now.)
 
 - **Time off**
   - `dayOffScheduleNames` — token field or comma-separated text

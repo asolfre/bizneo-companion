@@ -139,7 +139,7 @@ final class ParserTests: XCTestCase {
         XCTAssertEqual(snap.today.pendingDeltaMin, 0)
 
         // Expected checkout: 0:29 behind (projected) at 12:00 → leave by 12:29.
-        let checkout = Calculator.expectedCheckout(today: snap.today, generatedAt: snap.generatedAt)
+        let checkout = Calculator.expectedCheckout(stat: snap.today, generatedAt: snap.generatedAt)
         XCTAssertEqual(checkout, now.addingTimeInterval(29 * 60))
         let madrid = Calculator.madridCalendar(weekStartsMonday: true)
         XCTAssertEqual(checkout.map { TimeFmt.clock($0, calendar: madrid) }, "12:29")
@@ -148,7 +148,54 @@ final class ParserTests: XCTestCase {
             calendar: madrid), "16:28")
         // At/over target → no checkout time.
         XCTAssertNil(Calculator.expectedCheckout(
-            today: PeriodStat(label: "Today", officialBalanceMin: 15), generatedAt: now))
+            stat: PeriodStat(label: "Today", officialBalanceMin: 15), generatedAt: now))
+
+        // ----- leaveByScope: which backlog "Leave by" clears -----
+        XCTAssertEqual(Calculator.leaveByStat(snap, scope: .none).label, "Today")
+        XCTAssertEqual(Calculator.leaveByStat(snap, scope: .week).label, "This week")
+        XCTAssertEqual(Calculator.leaveByStat(snap, scope: .month).label, "This month")
+        // .year falls back to month when the year total is off, like Snapshot.stat(for:).
+        XCTAssertEqual(Calculator.leaveByStat(snap, scope: .year).label, "This month")
+        var withYear = snap
+        withYear.year = PeriodStat(label: "This year", officialBalanceMin: -1000)
+        XCTAssertEqual(Calculator.leaveByStat(withYear, scope: .year).label, "This year")
+
+        // Week projected = -460 + 440 = -20 → 12:20, a different answer from today's 12:29.
+        let weekLeave = Calculator.expectedCheckout(
+            stat: Calculator.leaveByStat(snap, scope: .week), generatedAt: snap.generatedAt)
+        XCTAssertEqual(weekLeave.map { TimeFmt.clock($0, calendar: madrid) }, "12:20")
+        // Month projected = -367 + 440 = +73, already ahead → no time at all.
+        XCTAssertNil(Calculator.expectedCheckout(
+            stat: Calculator.leaveByStat(snap, scope: .month), generatedAt: snap.generatedAt))
+
+        // A backlog spilling past midnight must not render as a bare early-morning time.
+        var deep = PeriodStat(label: "This month")
+        deep.officialBalanceMin = -(13 * 60)
+        let spill = try XCTUnwrap(Calculator.expectedCheckout(stat: deep, generatedAt: now))
+        XCTAssertEqual(TimeFmt.clock(spill, calendar: madrid), "01:00")
+        XCTAssertEqual(TimeFmt.clock(spill, since: now, calendar: madrid), "01:00 (+1d)")
+        XCTAssertEqual(TimeFmt.clock(now, since: now, calendar: madrid), "12:00")
+    }
+
+    // MARK: config round-trip
+
+    /// `Config` overrides the synthesized decoder, so a field missing its
+    /// `decodeIfPresent` line compiles fine and then silently resets on every load.
+    func testConfigRoundTripAndLegacyFile() throws {
+        XCTAssertEqual(Config().leaveByScope, .none)
+
+        var custom = Config()
+        custom.leaveByScope = .month
+        custom.barMetric = .today
+        let back = try JSONDecoder().decode(Config.self, from: JSONEncoder().encode(custom))
+        XCTAssertEqual(back.leaveByScope, .month)
+        XCTAssertEqual(back.barMetric, .today)
+
+        // A config.json written before the field existed must still load.
+        let legacy = try XCTUnwrap(#"{"tenant":"x","userId":"1"}"#.data(using: .utf8))
+        let old = try JSONDecoder().decode(Config.self, from: legacy)
+        XCTAssertEqual(old.leaveByScope, .none)
+        XCTAssertEqual(old.tenant, "x")
     }
 
     // MARK: pending change-requests across months
