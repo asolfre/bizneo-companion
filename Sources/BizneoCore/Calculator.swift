@@ -40,6 +40,21 @@ public enum Calculator {
         }
     }
 
+    /// Merge pending change-requests from several months into one display list.
+    ///
+    /// Deduplicates by request id — **earlier lists win**, so callers pass the
+    /// freshest (current-month) list first and a stale cached copy can never
+    /// shadow it. Sorted by date because the caller's source is a dictionary's
+    /// `.values`, which has no defined order.
+    public static func mergePending(_ lists: [[PendingRequest]]) -> [PendingRequest] {
+        var seen = Set<String>()
+        var out: [PendingRequest] = []
+        for list in lists {
+            for r in list where seen.insert(r.id).inserted { out.append(r) }
+        }
+        return out.sorted { $0.dateString < $1.dateString }
+    }
+
     /// Wall-clock time at which today's target is reached, assuming you keep
     /// working without further breaks. `nil` when already at/over target (i.e.
     /// the projected balance is non-negative). Uses the projected balance so the

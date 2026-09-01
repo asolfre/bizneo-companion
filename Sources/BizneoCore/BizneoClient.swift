@@ -148,6 +148,12 @@ public final class BizneoClient {
         // Year-to-date = cached past months (Jan..prev) + current month (live).
         if config.enableYearTotal {
             snapshot.year = try await computeYear(currentMonth: month, year: year, current: snapshot.month)
+            // The year figure counts pending change-requests from past months, so surface
+            // those requests too — otherwise the menu shows a pending total with nothing
+            // explaining it after a month rollover. Must run *after* computeYear, which
+            // populates yearCache as a side effect. Current month goes first so a stale
+            // cached copy can never shadow a freshly-resolved request.
+            snapshot.pending = Calculator.mergePending([pending] + yearCache.values.map(\.pending))
         }
         return snapshot
     }
@@ -171,7 +177,13 @@ public final class BizneoClient {
 
     // MARK: - Year-to-date (cached)
 
-    private struct MonthTotal { var balanceMin: Int; var pendingDeltaMin: Int }
+    /// Per-month totals. `pending` is retained (not just its summed delta) so the
+    /// menu can list past-month requests that the year figure is already counting.
+    private struct MonthTotal {
+        var balanceMin: Int
+        var pendingDeltaMin: Int
+        var pending: [PendingRequest]
+    }
     private var yearCache: [Int: MonthTotal] = [:]   // key: month 1..12 of `yearCacheYear`
     private var yearCacheYear = 0
     private var yearCacheStamp = Date.distantPast
@@ -183,7 +195,7 @@ public final class BizneoClient {
         let balance = Calculator.dayOffCorrectedSum(days: days, dayOffNames: config.dayOffScheduleNames)
         let pending = await resolvePending(in: days)
         let delta = pending.reduce(0) { $0 + $1.deltaMin }
-        return MonthTotal(balanceMin: balance, pendingDeltaMin: delta)
+        return MonthTotal(balanceMin: balance, pendingDeltaMin: delta, pending: pending)
     }
 
     private func computeYear(currentMonth: Int, year: Int, current: PeriodStat) async throws -> PeriodStat {
@@ -199,7 +211,7 @@ public final class BizneoClient {
             for m in 1..<currentMonth {
                 if yearCache[m] == nil {
                     yearCache[m] = (try? await computeMonthTotal(month: m, year: year))
-                        ?? MonthTotal(balanceMin: 0, pendingDeltaMin: 0)
+                        ?? MonthTotal(balanceMin: 0, pendingDeltaMin: 0, pending: [])
                 }
                 pastBalance += yearCache[m]?.balanceMin ?? 0
                 pastPending += yearCache[m]?.pendingDeltaMin ?? 0

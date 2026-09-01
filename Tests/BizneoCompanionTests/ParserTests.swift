@@ -151,6 +151,43 @@ final class ParserTests: XCTestCase {
             today: PeriodStat(label: "Today", officialBalanceMin: 15), generatedAt: now))
     }
 
+    // MARK: pending change-requests across months
+
+    /// The year figure counts pending requests from past months, so the menu list
+    /// has to span the year too — otherwise it empties out after a month rollover
+    /// while "This year" still shows a pending total.
+    func testMergePendingAcrossMonths() throws {
+        let jun15 = PendingRequest(id: "1275258", dateString: "2026-06-15", proposedMin: 8 * 60 + 14,
+                                   currentLoggedMin: 5 * 60 + 55)
+        let jun17 = PendingRequest(id: "1283627", dateString: "2026-06-17", proposedMin: 8 * 60,
+                                   currentLoggedMin: 2 * 60 + 59)
+        let current = [jun15, jun17]
+        let may = PendingRequest(id: "1200001", dateString: "2026-05-04", proposedMin: 8 * 60,
+                                 currentLoggedMin: 400)
+        let apr = PendingRequest(id: "1100002", dateString: "2026-04-02", proposedMin: 7 * 60,
+                                 currentLoggedMin: 300)
+
+        // Mirrors BizneoClient.refresh(): current month first, then the year cache's
+        // `.values` — a Dictionary, hence unordered, hence the sort.
+        let cache: [Int: [PendingRequest]] = [5: [may], 4: [apr]]
+        let merged = Calculator.mergePending([current] + cache.values.map { $0 })
+        XCTAssertEqual(merged.count, 4)
+        XCTAssertEqual(merged.map(\.dateString),
+                       ["2026-04-02", "2026-05-04", "2026-06-15", "2026-06-17"])
+
+        // A past month holding a stale copy of a current-month request must not win:
+        // the cache only refreshes every 3h, the current month is resolved every pass.
+        let stale = PendingRequest(id: "1275258", dateString: "2026-06-15", proposedMin: 1,
+                                   currentLoggedMin: 0)
+        let deduped = Calculator.mergePending([current, [stale]])
+        XCTAssertEqual(deduped.count, 2)
+        XCTAssertEqual(deduped.first(where: { $0.id == "1275258" })?.proposedMin, 8 * 60 + 14)
+
+        // Empty cache (enableYearTotal off, or January) → current month untouched.
+        XCTAssertEqual(Calculator.mergePending([current] + []).map(\.id), current.map(\.id))
+        XCTAssertTrue(Calculator.mergePending([]).isEmpty)
+    }
+
     // MARK: menu-bar clock state
 
     /// Bizneo reports "never checked in" and "checked out" as the same `.stopped`
