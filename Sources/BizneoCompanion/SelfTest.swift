@@ -207,6 +207,13 @@ enum SelfTest {
         check(dc.enableYearTotal == true, "default enableYearTotal == true")
         check(dc.dropdownSecondsScope == .today, "default dropdownSecondsScope == today", dc.dropdownSecondsScope.rawValue)
 
+        // Guards the constant build_app.sh scrapes for the Info.plist version.
+        print("app info:")
+        check(!AppInfo.name.isEmpty, "name non-empty", AppInfo.name)
+        check(!AppInfo.version.isEmpty, "version non-empty", AppInfo.version)
+        check(AppInfo.version.range(of: #"^\d+\.\d+"#, options: .regularExpression) != nil,
+              "version looks like semver", AppInfo.version)
+
         print(failures == 0 ? "\nALL PASSED ✅" : "\n\(failures) FAILED ❌")
         return failures == 0 ? 0 : 1
     }

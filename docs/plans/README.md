@@ -15,15 +15,14 @@ git mv docs/plans/pending/<name>.md docs/plans/done/
 
 ## Pending
 
-Suggested order — smallest/least invasive first, and #4 after #3 so the settings UI
+Suggested order — smallest/least invasive first, and #3 after #2 so the settings UI
 can expose `carryoverScope` in a single pass.
 
 | # | Plan | Summary |
 |---|---|---|
-| 1 | [`pending/versioning.md`](pending/versioning.md) | Single source of truth for the app version (`AppInfo.swift`), derived by `build_app.sh`, shown in the menu header. Unblocks tagged releases. |
-| 2 | [`pending/past-month-change-requests.md`](pending/past-month-change-requests.md) | Bug: the "Pending changes" section disappears after a month rollover even though the year figure still counts those requests. Retain per-month pending in the `BizneoClient` year cache. |
-| 3 | [`pending/configurable-carryover-scope.md`](pending/configurable-carryover-scope.md) | New `carryoverScope` config (`none`/`week`/`month`/`year`) folding a backlog into the menu-bar **Today** figure. |
-| 4 | [`pending/add-settings-screen.md`](pending/add-settings-screen.md) | Native Settings window replacing "Edit configuration…" (raw JSON), with launch-at-login and connection test. Largest of the four. |
+| 1 | [`pending/past-month-change-requests.md`](pending/past-month-change-requests.md) | Bug: the "Pending changes" section disappears after a month rollover even though the year figure still counts those requests. Retain per-month pending in the `BizneoClient` year cache. |
+| 2 | [`pending/configurable-carryover-scope.md`](pending/configurable-carryover-scope.md) | New `carryoverScope` config (`none`/`week`/`month`/`year`) folding a backlog into the menu-bar **Today** figure. |
+| 3 | [`pending/add-settings-screen.md`](pending/add-settings-screen.md) | Native Settings window replacing "Edit configuration…" (raw JSON), with launch-at-login and connection test. Largest of the three. |
 
 ## Done
 
@@ -34,6 +33,7 @@ can expose `carryoverScope` in a single pass.
 | [`done/expected-checkout-time.md`](done/expected-checkout-time.md) | [PR #3](https://github.com/asolfre/bizneo-companion/pull/3) — `🏁 Leave by HH:MM` in the working clock section; `Calculator.expectedCheckout` + `TimeFmt.clock`. *Plan reconstructed after the fact.* |
 | [`done/checkout-alert-icon.md`](done/checkout-alert-icon.md) | [PR #4](https://github.com/asolfre/bizneo-companion/pull/4) — tinted SF Symbols on both `NSAlert`s via a shared `alertIcon` helper; no bundled assets |
 | [`done/menu-bar-clock-states.md`](done/menu-bar-clock-states.md) | [PR #6](https://github.com/asolfre/bizneo-companion/pull/6) — `BarState` splits Bizneo's single `.stopped` into not-checked-in / checked-out-early / done / off-duty; SF Symbol status icons, orange "Check in" warning |
+| [`done/versioning.md`](done/versioning.md) | [PR #8](https://github.com/asolfre/bizneo-companion/pull/8) — `AppInfo` as the single source of truth, scraped by `build_app.sh` for the Info.plist; `--version` flag and version in the menu header. First tagged release, v0.1.0. |
 
 ## Writing a plan
 
