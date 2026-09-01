@@ -200,6 +200,28 @@ enum SelfTest {
               "barMetric .today selects today")
         check(sy.stat(for: .year).label == "This year", "barMetric .year selects year")
 
+        print("pending merge (past-month change requests):")
+        // Mirrors BizneoClient.refresh(): current month first, then the year cache's
+        // `.values` — a Dictionary, so deliberately unordered here.
+        let mayReq = PendingRequest(id: "1200001", dateString: "2026-05-04", proposedMin: 8*60, currentLoggedMin: 400)
+        let aprReq = PendingRequest(id: "1100002", dateString: "2026-04-02", proposedMin: 7*60, currentLoggedMin: 300)
+        let cache: [Int: [PendingRequest]] = [5: [mayReq], 4: [aprReq]]
+        let merged = Calculator.mergePending([pending] + cache.values.map { $0 })
+        check(merged.count == 4, "merged current + 2 past months", merged.count)
+        check(merged.map(\.dateString) == ["2026-04-02", "2026-05-04", "2026-06-15", "2026-06-17"],
+              "merged sorted by date", merged.map(\.dateString))
+        // A past month holding a stale copy of a current-month request must not win.
+        let stale = PendingRequest(id: "1275258", dateString: "2026-06-15", proposedMin: 1, currentLoggedMin: 0)
+        let deduped = Calculator.mergePending([pending, [stale]])
+        check(deduped.count == 2, "dedup by id", deduped.count)
+        check(deduped.first(where: { $0.id == "1275258" })?.proposedMin == 8*60+14,
+              "current month wins over stale cached copy",
+              deduped.first(where: { $0.id == "1275258" })?.proposedMin as Any)
+        // Empty cache (enableYearTotal off, or January) → current month unchanged.
+        check(Calculator.mergePending([pending] + []).map(\.id) == pending.map(\.id),
+              "empty cache leaves current month intact")
+        check(Calculator.mergePending([]).isEmpty, "merging nothing yields nothing")
+
         print("config defaults:")
         let dc = Config()
         check(dc.barMetric == .week, "default barMetric == week", dc.barMetric.rawValue)
