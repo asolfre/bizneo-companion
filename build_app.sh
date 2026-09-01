@@ -8,6 +8,10 @@ APP_NAME="BizneoCompanion"
 APP_DIR="${APP_NAME}.app"
 CONTENTS="${APP_DIR}/Contents"
 
+# The version lives in Swift so the bundle can't drift from the binary.
+VERSION="$(sed -n 's/.*static let version = "\([^"]*\)".*/\1/p' Sources/BizneoCore/AppInfo.swift)"
+[ -n "$VERSION" ] || { echo "error: no version found in Sources/BizneoCore/AppInfo.swift" >&2; exit 1; }
+
 echo "▸ Building release…"
 swift build -c release --build-path "$BUILD_PATH" 2>/dev/null || swift build -c release --build-path "$BUILD_PATH"
 
@@ -16,7 +20,7 @@ rm -rf "$APP_DIR"
 mkdir -p "${CONTENTS}/MacOS" "${CONTENTS}/Resources"
 cp "${BUILD_PATH}/release/${APP_NAME}" "${CONTENTS}/MacOS/${APP_NAME}"
 
-cat > "${CONTENTS}/Info.plist" <<'PLIST'
+cat > "${CONTENTS}/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -25,8 +29,8 @@ cat > "${CONTENTS}/Info.plist" <<'PLIST'
   <key>CFBundleDisplayName</key>          <string>Bizneo Companion</string>
   <key>CFBundleExecutable</key>           <string>BizneoCompanion</string>
   <key>CFBundleIdentifier</key>           <string>com.asolfre.bizneocompanion</string>
-  <key>CFBundleVersion</key>              <string>1.0</string>
-  <key>CFBundleShortVersionString</key>   <string>1.0</string>
+  <key>CFBundleVersion</key>              <string>${VERSION}</string>
+  <key>CFBundleShortVersionString</key>   <string>${VERSION}</string>
   <key>CFBundlePackageType</key>          <string>APPL</string>
   <key>LSMinimumSystemVersion</key>       <string>13.0</string>
   <key>LSUIElement</key>                  <true/>

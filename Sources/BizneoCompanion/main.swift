@@ -6,6 +6,7 @@ import BizneoCore
 //   • default            → run the menu-bar agent
 //   • --probe / --once   → fetch once, print a text report, exit (for validation from Terminal)
 //   • --dump             → (with --probe) also write raw HTML of each endpoint to /tmp for debugging
+//   • --version / -v     → print the version and exit
 
 let args = Set(CommandLine.arguments.dropFirst())
 
@@ -13,6 +14,11 @@ if let idx = CommandLine.arguments.firstIndex(of: "--selftest") {
     let dir = CommandLine.arguments.count > idx + 1 ? CommandLine.arguments[idx + 1]
         : "Tests/BizneoCompanionTests/Fixtures"
     exit(Int32(SelfTest.run(dir: dir)))
+}
+
+if args.contains("--version") || args.contains("-v") {
+    print("\(AppInfo.name) \(AppInfo.version)")
+    exit(0)
 }
 
 if args.contains("--probe") || args.contains("--once") {

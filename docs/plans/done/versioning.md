@@ -85,3 +85,22 @@ check(AppInfo.version.range(of: #"^\d+\.\d+"#, options: .regularExpression) != n
   `info("Loading…")` with no header, so there is nothing else to decide.
 - This is additive; no existing magic numbers change, so `ParserTests`/`SelfTest`
   fixture assertions are unaffected.
+
+## Deviations at implementation time
+
+Two changes were made against the plan as written above:
+
+1. **`build_app.sh` uses `sed` + an explicit guard, not `grep | grep`.** The script
+   runs `set -euo pipefail` (`build_app.sh:3`), so the proposed pipeline would have
+   aborted the build with no diagnostic if the constant were ever renamed or
+   removed — the second `grep` exits 1, `pipefail` propagates, `set -e` kills the
+   script. Replaced with a single `sed -n 's/…/\1/p'` capture followed by
+   `[ -n "$VERSION" ] || { echo "error: …" >&2; exit 1; }`, which fails just as
+   hard but says why.
+2. **The menu header uses `AppInfo.name`, not the literal.** The plan defined
+   `AppInfo.name` and then never used it, which would have left `"Bizneo Companion"`
+   duplicated across `AppInfo.swift` and both header call sites. Shipped as
+   `header("\(AppInfo.name) v\(AppInfo.version)")`.
+
+Also added beyond the plan: a `name non-empty` self-test check alongside the two
+version checks, since `name` is now load-bearing for the header.
