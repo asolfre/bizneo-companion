@@ -13,6 +13,13 @@ below:
 git mv docs/plans/pending/<name>.md docs/plans/done/
 ```
 
+If a plan is **abandoned or superseded before it ships**, don't just delete it: fold
+it into its successor's plan as a `## Rejected design` section explaining what it
+proposed and why it was dropped, then remove the original file in the same PR. The
+reasoning is the valuable part — losing it invites someone to re-propose the same
+dead end. `done/leave-by-scope.md` is the worked example (it absorbed
+`configurable-carryover-scope.md`, which turned out to be a no-op).
+
 ## Pending
 
 | # | Plan | Summary |

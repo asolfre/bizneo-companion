@@ -57,7 +57,9 @@ HTML endpoints**, authenticated by reusing the Chrome session cookie.
 - `docs/plans/` — feature design docs, tracked. `pending/` = designed but not
   implemented, `done/` = shipped (kept as an archive, **never deleted**). When a plan
   ships, `git mv docs/plans/pending/<x>.md docs/plans/done/` in the same PR that
-  implements it and update the tables in `docs/plans/README.md`.
+  implements it and update the tables in `docs/plans/README.md`. A plan **abandoned
+  or superseded before shipping** is folded into its successor as a `## Rejected
+  design` section (see `done/leave-by-scope.md`) — never dropped silently.
 
 ## Gotchas when editing
 
