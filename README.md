@@ -154,6 +154,7 @@ Stored at `~/Library/Application Support/BizneoCompanion/config.json` (or menu â
 | `liveTick` | Count balances up each second while the timer runs | `true` |
 | `barShowSecondsWhileWorking` | Show seconds (`H:MM:SS`) in the menu bar while working | `false` |
 | `dropdownSecondsScope` | Which dropdown rows tick in seconds: `none`/`today`/`all` | `today` |
+| `leaveByScope` | Which backlog "Leave by" clears: `none`/`week`/`month`/`year` | `none` |
 | `refreshSeconds` | Autoâ€‘refresh interval | `600` |
 
 <details><summary>Full config example</summary>
@@ -175,6 +176,7 @@ Stored at `~/Library/Application Support/BizneoCompanion/config.json` (or menu â
   "liveTick": true,
   "barShowSecondsWhileWorking": false,
   "dropdownSecondsScope": "today",
+  "leaveByScope": "none",
   "manualCookie": null
 }
 ```
