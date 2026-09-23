@@ -24,7 +24,7 @@ dead end. `done/leave-by-scope.md` is the worked example (it absorbed
 
 | # | Plan | Summary |
 |---|---|---|
-| 1 | [`pending/add-settings-screen.md`](pending/add-settings-screen.md) | Native Settings window replacing "Edit configuration…" (raw JSON), with launch-at-login and connection test. |
+| 1 | [`pending/settings-connection-helpers.md`](pending/settings-connection-helpers.md) | The two Account-section helpers cut from the Settings window: Chrome-profile auto-detect and Test connection. |
 
 ## Done
 
@@ -38,6 +38,7 @@ dead end. `done/leave-by-scope.md` is the worked example (it absorbed
 | [`done/versioning.md`](done/versioning.md) | [PR #8](https://github.com/asolfre/bizneo-companion/pull/8) — `AppInfo` as the single source of truth, scraped by `build_app.sh` for the Info.plist; `--version` flag and version in the menu header. First tagged release, v0.1.0. |
 | [`done/past-month-change-requests.md`](done/past-month-change-requests.md) | [PR #9](https://github.com/asolfre/bizneo-companion/pull/9) — `MonthTotal` retains each past month's requests so the "Pending changes" list stops emptying out after a month rollover; dedup/sort extracted to `Calculator.mergePending` to make it testable |
 | [`done/leave-by-scope.md`](done/leave-by-scope.md) | [PR #10](https://github.com/asolfre/bizneo-companion/pull/10) — `Config.leaveByScope` picks which backlog the "Leave by" line clears, with a `(+Nd)` suffix when it spills past midnight. *Rewritten mid-flight: the original `carryoverScope` design targeted the menu bar and was a no-op — the plan records why.* |
+| [`done/add-settings-screen.md`](done/add-settings-screen.md) | *unreleased* — branch `feature/settings-screen`: SwiftUI Settings window (⌘,) replacing "Edit configuration…", covering all 17 `Config` fields plus `SMAppService` open-at-login; `applyConfig` reloads the client, timer and menu without a restart. *Shipped SwiftUI rather than the planned hand-built `NSGridView`, and deferred Chrome-profile auto-detect + Test connection to [`pending/settings-connection-helpers.md`](pending/settings-connection-helpers.md) — the plan records both.* |
 
 ## Writing a plan
 

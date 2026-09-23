@@ -1,13 +1,13 @@
 import Foundation
 
 /// Which period the menu-bar number reflects.
-public enum BarMetric: String, Codable {
+public enum BarMetric: String, Codable, CaseIterable {
     case today, week, month, year
 }
 
 /// Which dropdown rows show live seconds (`H:MM:SS`) while the timer runs.
 /// `none` = never; `today` = Today row only (default); `all` = every period row.
-public enum DropdownSecondsScope: String, Codable {
+public enum DropdownSecondsScope: String, Codable, CaseIterable {
     case none, today, all
 }
 
@@ -20,7 +20,7 @@ public enum DropdownSecondsScope: String, Codable {
 /// This deliberately does **not** touch the menu-bar number: that is `barMetric`'s
 /// job, and a scope applied there would render exactly what `barMetric` already
 /// renders. See `docs/plans/done/leave-by-scope.md`.
-public enum LeaveByScope: String, Codable {
+public enum LeaveByScope: String, Codable, CaseIterable {
     case none, week, month, year
 }
 

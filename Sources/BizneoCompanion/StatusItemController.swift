@@ -17,6 +17,7 @@ final class StatusItemController: NSObject {
     /// Period stats + their menu items, for in-place live-tick updates.
     /// `secondsLive` = show H:MM:SS while the timer runs (Today only).
     private var periodRows: [(stat: PeriodStat, item: NSMenuItem, secondsLive: Bool)] = []
+    private var settingsWC: SettingsWindowController?
 
     init(config: Config) {
         self.config = config
@@ -312,7 +313,7 @@ final class StatusItemController: NSObject {
 
         menu.addItem(actionItem("Refresh now", #selector(refreshNow), key: "r"))
         menu.addItem(actionItem("Open Bizneo timesheet", #selector(openBizneo)))
-        menu.addItem(actionItem("Edit configuration…", #selector(openConfig)))
+        menu.addItem(actionItem("Settings…", #selector(openSettings), key: ","))
         menu.addItem(.separator())
         menu.addItem(actionItem("Quit", #selector(quit), key: "q"))
     }
@@ -587,10 +588,27 @@ final class StatusItemController: NSObject {
         NSWorkspace.shared.open(url)
     }
 
-    @objc private func openConfig() {
-        try? FileManager.default.createDirectory(at: Config.directory, withIntermediateDirectories: true)
-        if !FileManager.default.fileExists(atPath: Config.fileURL.path) { try? config.save() }
-        NSWorkspace.shared.open(Config.fileURL)
+    @objc private func openSettings() {
+        let wc = settingsWC ?? SettingsWindowController { [weak self] new in
+            self?.applyConfig(new)
+        }
+        settingsWC = wc
+        wc.show(config: config, projects: latest?.chrono?.projects ?? [])
+    }
+
+    /// Persist an edited config and bring the running app in line with it, so a
+    /// change takes effect without a restart.
+    private func applyConfig(_ new: Config) {
+        try? new.save()
+        config = new
+        client = BizneoClient(config: new)   // drops the cached cookie and year totals
+        scheduleTimer()                      // the interval may have changed
+        // Rebuild now rather than waiting for the fetch: enableClockActions and
+        // includePending change the menu's structure, and the fetch may fail.
+        rebuildMenu(snapshot: latest)
+        // refresh() repaints the bar from barContent() before it awaits, so a new
+        // barMetric shows immediately.
+        refresh()
     }
 
     @objc private func quit() { NSApp.terminate(nil) }
