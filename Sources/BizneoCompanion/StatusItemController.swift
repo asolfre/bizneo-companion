@@ -599,6 +599,9 @@ final class StatusItemController: NSObject {
     /// Persist an edited config and bring the running app in line with it, so a
     /// change takes effect without a restart.
     private func applyConfig(_ new: Config) {
+        // The quick "Check in" prefers the last project picked from the submenu,
+        // which would otherwise shadow a default chosen here forever.
+        if new.defaultProjectId != config.defaultProjectId { lastProjectId = nil }
         try? new.save()
         config = new
         client = BizneoClient(config: new)   // drops the cached cookie and year totals

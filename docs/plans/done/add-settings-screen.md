@@ -62,9 +62,18 @@ SwiftUI `Form` in an `NSWindow` via `NSHostingController`. Holds a working copy 
 `Config` and an `onSave: (Config) -> Void` callback. A strong reference to the window
 is kept (`isReleasedWhenClosed = false`).
 
-The **hosting controller is rebuilt on every `show()`** even though the window is
-reused. Reusing it would preserve SwiftUI's `@State`, so edits abandoned with Cancel
-would reappear the next time the window opened.
+The hosting controller is **rebuilt on each `show()` unless the window is already on
+screen**. Reusing it would preserve SwiftUI's `@State`, so edits abandoned with Cancel
+would reappear the next time the window opened; but rebuilding it while the window is
+visible would throw away half-typed edits when Settings is clicked a second time, so a
+visible window is just brought forward.
+
+**Main menu.** The app is `.accessory` and never set `NSApp.mainMenu`. AppKit routes
+⌘X/C/V/A/Z through the main menu's key equivalents, so without one, paste does nothing
+in the Settings fields, and the cookie field is the one you have to paste into.
+`main.swift` installs a hidden Edit menu (plus ⌘W). It is never displayed: accessory
+apps don't own the menu bar. The `⌘,` on the Settings item is the same kind of shortcut
+as the existing ⌘R/⌘Q. It works while the status menu is open, not globally.
 
 ### Sections & controls
 
@@ -87,8 +96,9 @@ copy, and `BizneoCore` has no business holding them.
   - `refreshSeconds` — `Picker` of presets (1 / 5 / 10 / 15 / 30 / 60 min). A preset
     picker rather than a number field means there's no invalid state to validate and
     no clamp to write; `scheduleTimer()` already floors the interval at 60s
-    (`StatusItemController.swift:38`). The current value is unioned into the options
-    so a hand-edited interval isn't silently rounded to the nearest preset.
+    (`StatusItemController.swift:39`). The current value is unioned into the options
+    so a hand-edited interval still has a matching row instead of rendering blank, and
+    an interval that isn't a whole number of minutes is labelled in seconds.
   - `weekStartsMonday`, `includePending`, `enableYearTotal`, `liveTick` — `Toggle`
   - `barShowSecondsWhileWorking` — `Toggle`, disabled unless `liveTick`
   - `dropdownSecondsScope` — `Picker` (Never / Today only / Every row), disabled
@@ -97,10 +107,18 @@ copy, and `BizneoCore` has no business holding them.
 - **Clock**
   - `enableClockActions` — `Toggle`
   - `defaultTelework` — segmented `Picker` (Office / Telework)
-  - `defaultProjectId` — `Picker` over the snapshot's projects, **with a raw-id
-    `TextField` fallback when that list is empty**. Without the fallback, an empty
-    list renders an empty picker and silently wipes a configured project id on the
-    next save — and the list *is* empty on first run and after any failed refresh.
+  - `defaultProjectId` — `Picker` over the snapshot's projects, with a raw-id
+    `TextField` fallback when that list is empty (first run, any failed refresh), and
+    an extra row when the configured id isn't in the list (an archived project, or an
+    id edited by hand). A picker whose selection matches no tag renders blank, which
+    SwiftUI warns gives "undefined results". Whether it would also write the value back
+    on save was **not observed**. These guards make sure that never needs finding out.
+    - **Shadowed by the last-used project.** The quick "Check in" item uses
+      `lastProjectId ?? defaultProjectId` (`StatusItemController.swift:425`, `:499`),
+      and every pick from the "Check in ▸" submenu sets `lastProjectId`, even
+      "No project". On its own, a default edited in Settings would have no effect
+      for anyone who had used the submenu. `applyConfig` clears `lastProjectId` when
+      the default changes, and the form says so under the picker.
   - `leaveByScope` — `Picker` (Today only / week / month / year), labelled for what it
     does: which backlog the "Leave by" line clears. Shipped in
     [`leave-by-scope.md`](leave-by-scope.md).
@@ -113,10 +131,23 @@ copy, and `BizneoCore` has no business holding them.
     dropped on save
 
 - **General**
-  - **Open at login** — `Toggle` backed by `SMAppService.mainApp`. System login-item
-    state, NOT a `config.json` field. The real `.status` is re-read after every
-    toggle, so a failed `register()`/`unregister()` (an unbundled build, say) flips
-    the switch back instead of lying about it.
+  - **Open at login**: a `Toggle` backed by `SMAppService.mainApp`. This is
+    system login-item state, NOT a `config.json` field. `SMAppService.Status` has four
+    cases. `.requiresApproval` means the app *is* registered but the user has blocked
+    it in System Settings → Login Items, so it counts as "on" and the form shows an
+    **Approve in System Settings…** button
+    (`SMAppService.openSystemSettingsLoginItems()`).
+    - *Corrected after review.* The first version counted only `.enabled` as on and
+      drove the toggle through `.onChange`. In the blocked case `register()` throws
+      `kSMErrorLaunchDeniedByUser` (`SMAppService.h`), the status reads
+      `.requiresApproval`, and the state was set to `false`. `.onChange` then fired
+      again and called `unregister()`, which undid the registration the user had just
+      asked for, so the toggle could never be turned on. The toggle now writes through
+      a `Binding` setter, so writing back the real status can't trigger it again. Other
+      errors are shown inline rather than beeped.
+    - Apple's header requires the app to be code signed. `build_app.sh` only ad-hoc
+      signs, so whether this works on a local build has to be tested at runtime, from
+      `/Applications`, across a real logout and login.
 
 - **Advanced**
   - `manualCookie` — `SecureField`
@@ -141,19 +172,20 @@ copy, and `BizneoCore` has no business holding them.
 - `@objc func openSettings()`: lazily create/reuse the controller, then
   `show(config:projects:)` with the current `config` and
   `latest?.chrono?.projects ?? []`.
-- `func applyConfig(_ new: Config)` — five steps, not the six earlier drafts listed:
-  1. `try? new.save()`
-  2. `self.config = new`
-  3. `self.client = BizneoClient(config: new)` (drops cached cookie + year totals)
-  4. `scheduleTimer()` (the interval may have changed)
-  5. `rebuildMenu(snapshot: latest)` — immediately, not on the next successful fetch:
-     `enableClockActions` and `includePending` change the menu's *structure*, and the
-     fetch may fail
-  6. `refresh()`
+- `func applyConfig(_ new: Config)`:
+  1. clear `lastProjectId` if `defaultProjectId` changed (see the Clock section)
+  2. `try? new.save()`
+  3. `self.config = new`
+  4. `self.client = BizneoClient(config: new)` (drops cached cookie + year totals)
+  5. `scheduleTimer()` (the interval may have changed)
+  6. `rebuildMenu(snapshot: latest)`, immediately rather than on the next successful
+     fetch: `enableClockActions` and `includePending` change the menu's *structure*,
+     and the fetch may fail
+  7. `refresh()`
 
-  The separate "re-apply the title" step earlier drafts had is redundant: `refresh()`
+  Earlier drafts had a separate "re-apply the title" step. It's redundant: `refresh()`
   repaints the bar from `barContent()` *before* it awaits
-  (`StatusItemController.swift:46-53`), so a new `barMetric` shows instantly.
+  (`StatusItemController.swift:47-54`), so a new `barMetric` shows instantly.
 
 ## Tests / build
 

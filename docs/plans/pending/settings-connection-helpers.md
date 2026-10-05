@@ -26,12 +26,12 @@ keeping a custom/editable fallback.
 - Enumerate `~/Library/Application Support/Google/Chrome/*/` for directories that
   contain a `Cookies` file.
 - Friendly name from each profile's `Preferences` JSON (`profile.name`), falling back
-  to the directory name. Show both, e.g. `Ángel (Profile 1)`.
+  to the directory name. Show both, e.g. `Work (Profile 1)`.
 - Flag profiles that hold a `*.bizneohr.com` cookie — that's the one the user wants,
   and it's the actual question they're trying to answer.
 - **Keep a custom-value fallback.** Same failure mode as the default-project picker:
   if detection finds nothing (unusual Chrome install, sandboxing, a renamed
-  directory), a bare `Picker` renders empty and would silently overwrite a working
+  directory), a bare `Picker` renders blank and can hide (or, untested, overwrite) a working
   `chromeProfile` on the next save. Fall back to the `TextField` when the list is
   empty, and make sure an already-configured profile that wasn't detected is still
   selectable.

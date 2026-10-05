@@ -29,6 +29,21 @@ if args.contains("--probe") || args.contains("--once") {
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)   // menu-bar only, no Dock icon (equivalent to LSUIElement)
 
+// Never displayed (accessory apps don't own the menu bar), but AppKit routes ⌘X/C/V/A/Z
+// through the main menu's key equivalents — without it, paste is dead in Settings.
+let editMenu = NSMenu(title: "Edit")
+editMenu.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
+editMenu.addItem(withTitle: "Redo", action: Selector(("redo:")), keyEquivalent: "Z")
+editMenu.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+editMenu.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+editMenu.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+editMenu.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+editMenu.addItem(withTitle: "Close Window", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+let editItem = NSMenuItem()
+editItem.submenu = editMenu
+app.mainMenu = NSMenu()
+app.mainMenu?.addItem(editItem)
+
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var controller: StatusItemController?
     func applicationDidFinishLaunching(_ notification: Notification) {

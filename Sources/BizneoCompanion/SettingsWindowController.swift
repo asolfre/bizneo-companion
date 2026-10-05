@@ -23,9 +23,15 @@ final class SettingsWindowController {
     }
 
     /// Show the window, seeded with the live config and the projects from the latest
-    /// snapshot. The hosting controller is rebuilt every time on purpose: reusing it
-    /// would keep SwiftUI's `@State`, so a cancelled edit would reappear on reopen.
+    /// snapshot. Already on screen → just bring it forward, so a second click doesn't
+    /// discard half-typed edits. Otherwise the hosting controller is rebuilt: reusing
+    /// it would keep SwiftUI's `@State`, so a cancelled edit would reappear on reopen.
     func show(config: Config, projects: [ChronoProject]) {
+        if let w = window, w.isVisible {
+            NSApp.activate(ignoringOtherApps: true)
+            w.makeKeyAndOrderFront(nil)
+            return
+        }
         let root = SettingsView(
             config: config,
             projects: projects,
@@ -66,6 +72,8 @@ private struct SettingsView: View {
     /// `dayOffScheduleNames` is edited as one comma-separated field and split on save.
     @State private var dayOffText: String
     @State private var openAtLogin: Bool
+    @State private var loginNeedsApproval: Bool
+    @State private var loginError: String?
 
     private let projects: [ChronoProject]
     private let onSave: (Config) -> Void
@@ -77,7 +85,9 @@ private struct SettingsView: View {
          onCancel: @escaping () -> Void) {
         _cfg = State(initialValue: config)
         _dayOffText = State(initialValue: config.dayOffScheduleNames.joined(separator: ", "))
-        _openAtLogin = State(initialValue: SMAppService.mainApp.status == .enabled)
+        let login = Self.loginState()
+        _openAtLogin = State(initialValue: login.on)
+        _loginNeedsApproval = State(initialValue: login.needsApproval)
         self.projects = projects
         self.onSave = onSave
         self.onCancel = onCancel
@@ -167,9 +177,10 @@ private struct SettingsView: View {
 
     /// A picker once the snapshot has loaded, a raw-id field before that.
     ///
-    /// Without the fallback an empty project list would render an empty picker and
-    /// silently wipe a configured `defaultProjectId` on the next save — the list is
-    /// empty on first run and whenever a refresh has failed.
+    /// A picker whose selection matches no tag renders blank (SwiftUI's "undefined
+    /// results"), hiding a configured `defaultProjectId`. So: no picker while the
+    /// list is empty (first run, failed refresh), and an extra row for an id the
+    /// list doesn't contain (archived project, hand-edited id).
     @ViewBuilder
     private var projectField: some View {
         if projects.isEmpty {
@@ -177,9 +188,15 @@ private struct SettingsView: View {
         } else {
             Picker("Default project", selection: $cfg.defaultProjectId) {
                 Text("No project").tag(String?.none)
+                if let id = cfg.defaultProjectId, !projects.contains(where: { $0.id == id }) {
+                    Text("Project \(id) (not in the current list)").tag(String?.some(id))
+                }
                 ForEach(projects, id: \.id) { Text($0.name).tag(String?.some($0.id)) }
             }
         }
+        Text("Changing this replaces the project last picked from \"Check in ▸\".")
+            .font(.caption)
+            .foregroundStyle(.secondary)
     }
 
     private var timeOffSection: some View {
@@ -193,8 +210,18 @@ private struct SettingsView: View {
 
     private var generalSection: some View {
         Section("General") {
-            Toggle("Open at login", isOn: $openAtLogin)
-                .onChange(of: openAtLogin) { setOpenAtLogin($0) }
+            // A Binding setter, not .onChange: the setter writes the real status back,
+            // and .onChange would react to that write by toggling again.
+            Toggle("Open at login", isOn: Binding(get: { openAtLogin }, set: setOpenAtLogin))
+            if loginNeedsApproval {
+                Text("Registered, but blocked in System Settings → Login Items.")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                Button("Approve in System Settings…") { SMAppService.openSystemSettingsLoginItems() }
+            }
+            if let loginError {
+                Text(loginError).font(.caption).foregroundStyle(.red)
+            }
             Text("Registers the app at its current path. For this to survive reliably, keep BizneoCompanion.app in /Applications.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -249,16 +276,29 @@ private struct SettingsView: View {
         onSave(out)
     }
 
-    /// Re-reads the real status afterwards so a failed register/unregister (an
-    /// unbundled build, say) flips the toggle back instead of lying.
+    /// `.requiresApproval` means registered but blocked by the user in System
+    /// Settings (SMAppService.h). It counts as "on": treating it as off made the
+    /// toggle unregister the very thing the user had just asked for.
+    private static func loginState() -> (on: Bool, needsApproval: Bool) {
+        let s = SMAppService.mainApp.status
+        return (s == .enabled || s == .requiresApproval, s == .requiresApproval)
+    }
+
+    /// Shows the status macOS actually reports afterwards, never the requested one.
     private func setOpenAtLogin(_ on: Bool) {
+        var failure: String?
         do {
             if on { try SMAppService.mainApp.register() }
             else { try SMAppService.mainApp.unregister() }
         } catch {
-            NSSound.beep()
+            failure = error.localizedDescription
         }
-        openAtLogin = SMAppService.mainApp.status == .enabled
+        let login = Self.loginState()
+        openAtLogin = login.on
+        loginNeedsApproval = login.needsApproval
+        // register() throws "launch denied" in the approval case; the approval
+        // hint above already says that better than the raw error.
+        loginError = login.needsApproval ? nil : failure
     }
 
     // MARK: Labels
@@ -290,7 +330,8 @@ private struct SettingsView: View {
     }
 
     private func minutesLabel(_ seconds: Int) -> String {
-        let m = max(1, seconds / 60)
+        guard seconds % 60 == 0 else { return "\(seconds) seconds" }
+        let m = seconds / 60
         return m == 1 ? "1 minute" : "\(m) minutes"
     }
 }
