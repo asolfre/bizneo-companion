@@ -268,7 +268,9 @@ enum SelfTest {
                             enableYearTotal: false, barMetric: .today, defaultTelework: false,
                             defaultProjectId: "p-1", liveTick: false,
                             barShowSecondsWhileWorking: true, dropdownSecondsScope: .all,
-                            leaveByScope: .month, manualCookie: "_hcmex_key=x")
+                            leaveByScope: .month, remindersEnabled: false,
+                            reminderWindows: ["09:00-09:30"], reminderIntervalMinutes: 30,
+                            manualCookie: "_hcmex_key=x")
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys]
         func lines(_ d: Data) -> [String] {
@@ -293,6 +295,83 @@ enum SelfTest {
         } else {
             check(false, "legacy config decodes")
         }
+
+        // Check-in reminders (#16): window parsing, the due/not-due decision, and the
+        // clock-action state guard. See docs/plans/done/check-in-reminders.md.
+        print("reminders:")
+        check(Reminders.parseWindow("08:00-10:00") == 480..<600, "window 08:00-10:00", Reminders.parseWindow("08:00-10:00") as Any)
+        check(Reminders.parseWindow(" 8:00 - 9:30 ") == 480..<570, "window tolerates spaces, 1-digit hour")
+        for bad in ["", "08:00", "10:00-08:00", "09:00-09:00", "22:00-02:00", "+08:00-10:00",
+                    "-08:00-10:00", "08:75-10:00", "24:00-25:00", "8-10", "08:00-10:00-12:00"] {
+            check(Reminders.parseWindow(bad) == nil, "window rejects \"\(bad)\"", Reminders.parseWindow(bad) as Any)
+        }
+        check(Reminders.windows(["08:00-10:00", "oops", "14:00-15:30"]) == [480..<600, 840..<930],
+              "invalid entries dropped, valid ones kept")
+        check(Reminders.isRemindable(.notCheckedIn) && Reminders.isRemindable(.checkedOutEarly)
+              && Reminders.isRemindable(.onBreak), "remind: not checked in / out early / on break")
+        check(!Reminders.isRemindable(.working) && !Reminders.isRemindable(.doneForToday)
+              && !Reminders.isRemindable(.offDuty) && !Reminders.isRemindable(.unknown),
+              "never remind: working / done / off duty / unknown")
+
+        // `madrid` (Calculator.madridCalendar, Monday weeks) is defined above.
+        // Tue 2026-10-06 in Madrid (CEST, +02:00).
+        func at(_ hm: String) -> Date {
+            ISO8601DateFormatter().date(from: "2026-10-06T\(hm):00+02:00")!
+        }
+        check(Reminders.dayKey(at("00:30"), calendar: madrid) == "2026-10-06", "dayKey uses Madrid, not UTC",
+              Reminders.dayKey(at("00:30"), calendar: madrid))
+        func ctx(_ now: String, _ state: BarState? = .notCheckedIn, screen: Bool = true,
+                 snoozed: String? = nil, failed: Bool = false, attempt: String? = "LAST",
+                 reminded: String? = nil, noticed: String? = nil) -> Reminders.Context {
+            Reminders.Context(now: at(now), calendar: madrid, windows: [480..<600, 840..<930],
+                              intervalMinutes: 15, screenActive: screen, snoozedDay: snoozed,
+                              state: state, refreshFailed: failed,
+                              // "LAST" = an attempt one minute ago: fresh data.
+                              lastAttemptAt: attempt == "LAST" ? at(now).addingTimeInterval(-60) : attempt.map(at),
+                              lastRemindedAt: reminded.map(at), lastFailureNoticeAt: noticed.map(at))
+        }
+        let N = Reminders.next
+        check(N(ctx("07:59"), false) == .idle, "07:59 before the window → idle")
+        check(N(ctx("08:00"), false) == .refresh, "08:00 start is inside → confirm with a refresh first")
+        check(N(ctx("08:00"), true) == .remind, "08:00 after refresh → remind")
+        check(N(ctx("10:00"), true) == .idle, "10:00 end is outside → idle")
+        check(N(ctx("12:00"), true) == .idle, "between windows → idle")
+        check(N(ctx("14:30", .checkedOutEarly), true) == .remind, "afternoon, checked out early → remind")
+        check(N(ctx("14:30", .onBreak), true) == .remind, "afternoon, on a break → remind")
+        for s: BarState in [.working, .doneForToday, .offDuty, .unknown] {
+            check(N(ctx("09:00", s), true) == .idle, "\(s) → idle (withdraws stale reminders)")
+        }
+        check(N(ctx("09:00", nil), true) == .idle, "no data yet, after refresh → idle")
+        check(N(ctx("09:00", nil, attempt: nil), false) == .refresh, "no data and never tried → refresh")
+        check(N(ctx("09:00", screen: false), true) == .idle, "screen inactive → idle")
+        check(N(ctx("09:00", snoozed: "2026-10-06"), true) == .idle, "Not today → idle")
+        check(N(ctx("09:00", snoozed: "2026-10-05"), true) == .remind, "yesterday's Not today doesn't carry over")
+        check(N(ctx("09:00", reminded: "08:50"), true) == .wait, "10 min since last reminder (interval 15) → wait")
+        check(N(ctx("09:05", reminded: "08:50"), true) == .remind, "15 min since last reminder → remind")
+        // R5: stale data inside a window is refreshed even when nothing is due yet.
+        check(N(ctx("09:00", .working, attempt: "08:40"), false) == .refresh, "working, data 20 min old → refresh")
+        check(N(ctx("09:00", .working, attempt: "08:50"), false) == .idle, "working, data 10 min old → idle")
+        check(N(ctx("09:00", attempt: "08:40", reminded: "08:50"), false) == .refresh, "waiting on interval but stale → refresh")
+        // R2: failures inside a window.
+        check(N(ctx("09:00", failed: true), false) == .refresh, "first failure → retry before telling anyone")
+        check(N(ctx("09:00", failed: true), true) == .failureNotice, "still failing after retry → failure notice")
+        check(N(ctx("09:30", failed: true, noticed: "09:00"), true) == .wait, "failure already noticed this window → wait")
+        check(N(ctx("09:30", failed: true, attempt: "09:29", noticed: "09:00"), false) == .wait, "noticed + fresh attempt → no retry storm")
+        check(N(ctx("09:30", failed: true, attempt: "09:10", noticed: "09:00"), false) == .refresh, "noticed + stale attempt → retry at the interval")
+        check(N(ctx("14:30", failed: true, noticed: "09:00"), true) == .failureNotice, "new window → new failure notice")
+        check(N(ctx("12:00", failed: true), true) == .idle, "failure outside a window → idle")
+
+        // R1: clock actions are refused when Bizneo's state no longer fits.
+        let checkIn = ChronoAction.checkIn(projectIds: [], telework: true)
+        check(checkIn.isAllowed(from: .stopped) && !checkIn.isAllowed(from: .working)
+              && !checkIn.isAllowed(from: .paused) && !checkIn.isAllowed(from: .unknown),
+              "check in only when stopped")
+        check(ChronoAction.resume.isAllowed(from: .paused) && !ChronoAction.resume.isAllowed(from: .working),
+              "resume only when paused")
+        check(ChronoAction.takeBreak.isAllowed(from: .working) && !ChronoAction.takeBreak.isAllowed(from: .paused),
+              "break only when working")
+        check(ChronoAction.checkOut.isAllowed(from: .working) && ChronoAction.checkOut.isAllowed(from: .paused)
+              && !ChronoAction.checkOut.isAllowed(from: .stopped), "check out when working or paused")
 
         // Guards the constant build_app.sh scrapes for the Info.plist version.
         print("app info:")

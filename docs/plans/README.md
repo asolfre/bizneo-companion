@@ -25,7 +25,6 @@ dead end. `done/leave-by-scope.md` is the worked example (it absorbed
 | # | Plan | Summary |
 |---|---|---|
 | 1 | [`pending/settings-connection-helpers.md`](pending/settings-connection-helpers.md) | The two Account-section helpers cut from the Settings window: Chrome-profile auto-detect and Test connection. |
-| 2 | [`pending/check-in-reminders.md`](pending/check-in-reminders.md) | Notifications inside configurable time windows when you haven't checked in, checked out early, or are still on a break ([#16](https://github.com/asolfre/bizneo-companion/issues/16)). |
 
 ## Done
 
@@ -40,6 +39,7 @@ dead end. `done/leave-by-scope.md` is the worked example (it absorbed
 | [`done/past-month-change-requests.md`](done/past-month-change-requests.md) | [PR #9](https://github.com/asolfre/bizneo-companion/pull/9) — `MonthTotal` retains each past month's requests so the "Pending changes" list stops emptying out after a month rollover; dedup/sort extracted to `Calculator.mergePending` to make it testable |
 | [`done/leave-by-scope.md`](done/leave-by-scope.md) | [PR #10](https://github.com/asolfre/bizneo-companion/pull/10) — `Config.leaveByScope` picks which backlog the "Leave by" line clears, with a `(+Nd)` suffix when it spills past midnight. *Rewritten mid-flight: the original `carryoverScope` design targeted the menu bar and was a no-op — the plan records why.* |
 | [`done/add-settings-screen.md`](done/add-settings-screen.md) | [PR #15](https://github.com/asolfre/bizneo-companion/pull/15) — SwiftUI Settings window (⌘,) replacing "Edit configuration…", covering all 17 `Config` fields plus `SMAppService` open-at-login; `applyConfig` reloads the client, timer and menu without a restart. *Shipped SwiftUI rather than the planned hand-built `NSGridView`, and deferred Chrome-profile auto-detect + Test connection to [`pending/settings-connection-helpers.md`](pending/settings-connection-helpers.md) — the plan records both.* |
+| [`done/check-in-reminders.md`](done/check-in-reminders.md) | *unreleased* — branch `feature/check-in-reminders` ([#16](https://github.com/asolfre/bizneo-companion/issues/16)): notifications inside Madrid-time windows when not checked in, checked out early or on a break, with **Check in** / **Resume** / **Not today**; pure `Reminders.next` decision covered by `--selftest`. Every clock action, menu included, is now refused when Bizneo's fresh state doesn't allow it. *Seven review findings folded in before code — the plan records them.* |
 
 ## Writing a plan
 

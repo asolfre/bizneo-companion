@@ -19,6 +19,17 @@ final class StatusItemController: NSObject {
     private var periodRows: [(stat: PeriodStat, item: NSMenuItem, secondsLive: Bool)] = []
     private var settingsWC: SettingsWindowController?
 
+    // MARK: Reminder state (#16). In memory only: a restart can repeat one reminder.
+    private var reminderTimer: Timer?
+    private var reminderBusy = false
+    /// When the last refresh attempt finished, successful or not (see
+    /// `Reminders.Context.lastAttemptAt`). `lastRefreshAt` only moves on success.
+    private var lastAttemptAt: Date?
+    private var lastRemindedAt: Date?
+    private var lastFailureNoticeAt: Date?
+    private lazy var notifier = ReminderNotifier { [weak self] in self?.handleReminderAction($0) }
+    private static let snoozeKey = "remindersSnoozedDay"
+
     init(config: Config) {
         self.config = config
         self.client = BizneoClient(config: config)
@@ -32,6 +43,7 @@ final class StatusItemController: NSObject {
         rebuildMenu(snapshot: nil)
         scheduleTimer()
         refresh()
+        startReminders()
     }
 
     private func scheduleTimer() {
@@ -45,6 +57,11 @@ final class StatusItemController: NSObject {
     // MARK: - Refresh
 
     func refresh() {
+        Task { await performRefresh() }
+    }
+
+    /// The awaitable form, so a reminder can refresh and then decide on fresh data.
+    private func performRefresh() async {
         // Fade the current content while the request is in flight; keep the icon so
         // the item doesn't flicker on every refresh cycle.
         if let c = barContent() {
@@ -52,17 +69,16 @@ final class StatusItemController: NSObject {
         } else {
             setStatus(look: .loading, text: "", color: .secondaryLabelColor, dimText: true)
         }
-        Task { @MainActor in
-            do {
-                let snap = try await client.refresh()
-                self.lastError = nil
-                self.apply(snap)
-            } catch {
-                self.client.invalidateCookie()
-                self.lastError = (error as? BizneoError)?.errorDescription ?? error.localizedDescription
-                self.applyError()
-            }
+        do {
+            let snap = try await client.refresh()
+            lastError = nil
+            apply(snap)
+        } catch {
+            client.invalidateCookie()
+            lastError = (error as? BizneoError)?.errorDescription ?? error.localizedDescription
+            applyError()
         }
+        lastAttemptAt = Date()
     }
 
     private var latest: Snapshot?
@@ -538,13 +554,21 @@ final class StatusItemController: NSObject {
                 self.refresh()   // reload state + balances
             } catch {
                 self.lastError = (error as? BizneoError)?.errorDescription ?? error.localizedDescription
+                // A clock action can come from a reminder while another app is in
+                // front. Without activating, this modal opens behind other windows,
+                // and the default-mode refresh timer waits until it's found.
+                NSApp.activate(ignoringOtherApps: true)
                 let alert = NSAlert()
                 alert.messageText = "Clock action failed"
                 alert.informativeText = self.lastError ?? "Unknown error"
                 alert.alertStyle = .critical
                 if let icon = self.alertIcon("exclamationmark.triangle.fill", color: .systemRed) { alert.icon = icon }
                 alert.runModal()
-                self.rebuildMenu(snapshot: self.latest)
+                if case .clockStateChanged? = error as? BizneoError {
+                    self.refresh()   // the menu was out of date; show what Bizneo has now
+                } else {
+                    self.rebuildMenu(snapshot: self.latest)
+                }
             }
         }
     }
@@ -612,6 +636,107 @@ final class StatusItemController: NSObject {
         // refresh() repaints the bar from barContent() before it awaits, so a new
         // barMetric shows immediately.
         refresh()
+        if !new.remindersEnabled { notifier.withdraw() }
+        else { notifier.requestPermission() }   // no-op once macOS has an answer
+    }
+
+    // MARK: - Reminders (#16)
+
+    private func startReminders() {
+        if config.remindersEnabled { notifier.requestPermission() }
+        // .common, like the display timer: keep ticking while the menu or an alert is open.
+        let t = Timer(timeInterval: 60, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.reminderTick() }
+        }
+        RunLoop.main.add(t, forMode: .common)
+        reminderTimer = t
+    }
+
+    private func reminderContext() -> Reminders.Context {
+        Reminders.Context(
+            now: Date(),
+            calendar: Calculator.madridCalendar(weekStartsMonday: config.weekStartsMonday),
+            windows: Reminders.windows(config.reminderWindows),
+            intervalMinutes: config.reminderIntervalMinutes,
+            screenActive: screenActive,
+            snoozedDay: UserDefaults.standard.string(forKey: Self.snoozeKey),
+            state: latest?.barState,
+            refreshFailed: lastError != nil,
+            lastAttemptAt: lastAttemptAt,
+            lastRemindedAt: lastRemindedAt,
+            lastFailureNoticeAt: lastFailureNoticeAt)
+    }
+
+    private func reminderTick() {
+        guard !reminderBusy else { return }
+        guard config.remindersEnabled else { notifier.withdraw(); return }
+        guard !clockBusy else { return }   // a clock action is about to change the state
+        let step = Reminders.next(reminderContext(), justRefreshed: false)
+        guard step == .refresh else { actOn(step); return }
+        reminderBusy = true
+        Task {
+            await performRefresh()
+            reminderBusy = false
+            guard config.remindersEnabled, !clockBusy else { return }
+            actOn(Reminders.next(reminderContext(), justRefreshed: true))
+        }
+    }
+
+    private func actOn(_ step: Reminders.Step) {
+        switch step {
+        case .idle: notifier.withdraw()
+        case .wait, .refresh: break
+        case .remind:
+            guard let s = latest else { return }
+            postReminder(for: s)
+            lastRemindedAt = Date()
+        case .failureNotice:
+            notifier.post(.failure, title: "Can't check your Bizneo status",
+                          body: lastError ?? "Bizneo couldn't be reached.")
+            lastFailureNoticeAt = Date()
+        }
+    }
+
+    private func postReminder(for s: Snapshot) {
+        let canClock = config.enableClockActions
+        switch s.barState {
+        case .notCheckedIn:
+            notifier.post(canClock ? .checkIn : .plain, title: "You haven't checked in",
+                          body: "Hours are expected today and the clock isn't running.")
+        case .checkedOutEarly:
+            let left = TimeFmt.plain(max(0, -s.today.projectedBalanceMin))
+            notifier.post(canClock ? .checkIn : .plain, title: "Not back yet?",
+                          body: "You're checked out with \(left) still to go today.")
+        case .onBreak:
+            let since = s.chrono?.startedAt.flatMap(clockTime(_:)).map { " since \($0)" } ?? ""
+            notifier.post(canClock ? .resume : .plain, title: "Still on a break?",
+                          body: "Your break has been running\(since).")
+        default:
+            break   // Reminders.next only reminds for the three states above
+        }
+    }
+
+    private func handleReminderAction(_ action: ReminderNotifier.Action) {
+        switch action {
+        case .checkIn: checkInQuick()
+        case .resume: resumeWork()
+        case .openBizneo: openBizneo()
+        case .notToday:
+            let cal = Calculator.madridCalendar(weekStartsMonday: config.weekStartsMonday)
+            UserDefaults.standard.set(Reminders.dayKey(Date(), calendar: cal), forKey: Self.snoozeKey)
+            notifier.withdraw()
+        }
+    }
+
+    /// Display awake, this user at the console, and the session unlocked.
+    private var screenActive: Bool {
+        if CGDisplayIsAsleep(CGMainDisplayID()) != 0 { return false }
+        guard let session = CGSessionCopyCurrentDictionary() as? [String: Any] else { return true }
+        // Value of the documented kCGSessionOnConsoleKey: false under fast user switching.
+        if let onConsole = session["kCGSSessionOnConsoleKey"] as? Bool, !onConsole { return false }
+        // Undocumented (not in CGSession.h). A missing key counts as unlocked, so
+        // reminders degrade to "display awake" instead of going silent.
+        return (session["CGSSessionScreenIsLocked"] as? Bool) != true
     }
 
     @objc private func quit() { NSApp.terminate(nil) }

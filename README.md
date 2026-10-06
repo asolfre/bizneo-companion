@@ -69,6 +69,7 @@ Bizneo Companion puts your running time balance right in the menu bar and lets y
 | 🏖️ **Day‑off aware** | Free "Fridom" Fridays don't count against you |
 | 🔄 **Auto‑refresh** | Every 10 min (configurable) + on demand |
 | ⚙️ **Settings window** | Every option in a real form — no JSON editing, applies without a restart |
+| 🔔 **Check‑in reminders** | A notification with a **Check in** (or **Resume**) button when you haven't started, checked out early, or are still on a break, inside time windows you choose. **Not today** silences it until tomorrow. |
 | 🪶 **Tiny & native** | Swift menu‑bar agent, no Dock icon, no Electron |
 
 ## Quick start
@@ -165,6 +166,9 @@ Highlights:
 | `dropdownSecondsScope` | Which dropdown rows tick in seconds: `none`/`today`/`all` | `today` |
 | `leaveByScope` | Which backlog "Leave by" clears: `none`/`week`/`month`/`year` | `none` |
 | `refreshSeconds` | Auto‑refresh interval | `600` |
+| `remindersEnabled` | Check‑in reminders on/off (keeps the windows when off) | `true` |
+| `reminderWindows` | When reminders may fire, Madrid time, `HH:MM-HH:MM` | `["08:00-10:00", "14:00-15:30"]` |
+| `reminderIntervalMinutes` | Minutes between reminders inside a window | `15` |
 
 <details><summary>Full config example</summary>
 
@@ -186,6 +190,9 @@ Highlights:
   "barShowSecondsWhileWorking": false,
   "dropdownSecondsScope": "today",
   "leaveByScope": "none",
+  "remindersEnabled": true,
+  "reminderWindows": ["08:00-10:00", "14:00-15:30"],
+  "reminderIntervalMinutes": 15,
   "manualCookie": null
 }
 ```

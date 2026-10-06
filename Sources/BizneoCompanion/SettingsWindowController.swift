@@ -71,6 +71,9 @@ private struct SettingsView: View {
     @State private var cfg: Config
     /// `dayOffScheduleNames` is edited as one comma-separated field and split on save.
     @State private var dayOffText: String
+    /// `reminderWindows`, edited as one comma-separated field like `dayOffText`.
+    @State private var remindersText: String
+    @State private var notificationsDenied = false
     @State private var openAtLogin: Bool
     @State private var loginNeedsApproval: Bool
     @State private var loginError: String?
@@ -85,6 +88,7 @@ private struct SettingsView: View {
          onCancel: @escaping () -> Void) {
         _cfg = State(initialValue: config)
         _dayOffText = State(initialValue: config.dayOffScheduleNames.joined(separator: ", "))
+        _remindersText = State(initialValue: config.reminderWindows.joined(separator: ", "))
         let login = Self.loginState()
         _openAtLogin = State(initialValue: login.on)
         _loginNeedsApproval = State(initialValue: login.needsApproval)
@@ -99,6 +103,7 @@ private struct SettingsView: View {
                 accountSection
                 displaySection
                 clockSection
+                remindersSection
                 timeOffSection
                 generalSection
                 advancedSection
@@ -199,6 +204,38 @@ private struct SettingsView: View {
             .foregroundStyle(.secondary)
     }
 
+    private var remindersSection: some View {
+        Section("Reminders") {
+            Toggle("Remind me to check in", isOn: $cfg.remindersEnabled)
+            TextField("Windows", text: $remindersText, prompt: Text("08:00-10:00, 14:00-15:30"))
+                .disabled(!cfg.remindersEnabled)
+            if !invalidWindows.isEmpty {
+                Text("Not a valid window: \(invalidWindows.joined(separator: ", ")). Use HH:MM-HH:MM within one day.")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+            Picker("Remind every", selection: $cfg.reminderIntervalMinutes) {
+                ForEach(reminderIntervalOptions, id: \.self) { Text(minutesLabel($0 * 60)).tag($0) }
+            }
+            .disabled(!cfg.remindersEnabled)
+            Text("Madrid time. Only on days with hours expected and with the screen unlocked, when you haven't checked in, have checked out early, or are still on a break.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            if notificationsDenied {
+                Text("Notifications for Bizneo Companion are turned off in System Settings.")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                Button("Open Notification Settings…") {
+                    let id = Bundle.main.bundleIdentifier ?? ""
+                    if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=\(id)") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+            }
+        }
+        .task { notificationsDenied = await ReminderNotifier.isDenied() }
+    }
+
     private var timeOffSection: some View {
         Section("Time off") {
             TextField("Day-off schedules", text: $dayOffText, prompt: Text("Fridom, Fridom (7 hours)"))
@@ -261,6 +298,22 @@ private struct SettingsView: View {
     private var canSave: Bool {
         !cfg.tenant.trimmingCharacters(in: .whitespaces).isEmpty
             && !cfg.userId.trimmingCharacters(in: .whitespaces).isEmpty
+            && invalidWindows.isEmpty
+    }
+
+    private var invalidWindows: [String] {
+        commaList(remindersText).filter { Reminders.parseWindow($0) == nil }
+    }
+
+    private var reminderIntervalOptions: [Int] {
+        Array(Set([5, 10, 15, 30, 60] + [cfg.reminderIntervalMinutes])).sorted()
+    }
+
+    /// Split on commas, trim, drop empties: the format of both list fields.
+    private func commaList(_ s: String) -> [String] {
+        s.split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
     }
 
     // MARK: Actions
@@ -269,10 +322,8 @@ private struct SettingsView: View {
         var out = cfg
         out.tenant = out.tenant.trimmingCharacters(in: .whitespaces)
         out.userId = out.userId.trimmingCharacters(in: .whitespaces)
-        out.dayOffScheduleNames = dayOffText
-            .split(separator: ",")
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
+        out.dayOffScheduleNames = commaList(dayOffText)
+        out.reminderWindows = commaList(remindersText)
         onSave(out)
     }
 

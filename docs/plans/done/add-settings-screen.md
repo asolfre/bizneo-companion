@@ -155,9 +155,11 @@ copy, and `BizneoCore` has no business holding them.
     - **Each build is a separate login item.** With no Team ID, macOS identifies an
       ad-hoc app by its build hash (CDHash), which changes on every `build_app.sh`.
       Installing a new build leaves the old record behind, and the toggle reads the
-      status for the running build's hash. After updating, the toggle may show off
-      while an old record still starts the app at login. Not observed yet: check it
-      on the next update.
+      status for the running build's hash. **Observed on the v0.3.0 update:** the
+      toggle showed off and had to be switched on again, after which `sfltool dumpbtm`
+      held a single enabled record for the new hash, and the old one was gone. The
+      v0.3.0 release notes tell users to check the toggle after updating. Whether the
+      old record would still have started the app at login was not tested.
     - **Untested:** the *Approve in System Settings…* path. For this kind of login
       item, System Settings seems to offer only removal (which correctly reads as
       off), not blocking, so `.requiresApproval` may be unreachable. The code is
