@@ -25,6 +25,7 @@ dead end. `done/leave-by-scope.md` is the worked example (it absorbed
 | # | Plan | Summary |
 |---|---|---|
 | 1 | [`pending/settings-connection-helpers.md`](pending/settings-connection-helpers.md) | The two Account-section helpers cut from the Settings window: Chrome-profile auto-detect and Test connection. |
+| 2 | [`pending/check-in-reminders.md`](pending/check-in-reminders.md) | Notifications inside configurable time windows when you haven't checked in, checked out early, or are still on a break ([#16](https://github.com/asolfre/bizneo-companion/issues/16)). |
 
 ## Done
 
