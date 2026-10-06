@@ -113,7 +113,7 @@ private struct SettingsView: View {
             Divider()
 
             HStack {
-                Text("v\(AppInfo.version)")
+                Text("v\(AppInfo.displayVersion)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()

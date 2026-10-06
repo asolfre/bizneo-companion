@@ -17,7 +17,7 @@ if let idx = CommandLine.arguments.firstIndex(of: "--selftest") {
 }
 
 if args.contains("--version") || args.contains("-v") {
-    print("\(AppInfo.name) \(AppInfo.version)")
+    print("\(AppInfo.name) \(AppInfo.displayVersion)")
     exit(0)
 }
 

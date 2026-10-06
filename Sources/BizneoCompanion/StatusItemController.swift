@@ -290,7 +290,7 @@ final class StatusItemController: NSObject {
         periodRows.removeAll()
 
         if let s = snapshot {
-            menu.addItem(header("\(AppInfo.name) v\(AppInfo.version)"))
+            menu.addItem(header("\(AppInfo.name) v\(AppInfo.displayVersion)"))
             menu.addItem(periodItem(s.today, isToday: true))
             menu.addItem(periodItem(s.week))
             menu.addItem(periodItem(s.month))
@@ -316,7 +316,7 @@ final class StatusItemController: NSObject {
             menu.addItem(.separator())
             menu.addItem(info("Updated \(timeString(s.generatedAt))"))
         } else if let err = lastError {
-            menu.addItem(header("\(AppInfo.name) v\(AppInfo.version)"))
+            menu.addItem(header("\(AppInfo.name) v\(AppInfo.displayVersion)"))
             menu.addItem(info("⚠︎ \(err)"))
             if err.contains("logged in") || err.contains("cookie") {
                 menu.addItem(actionItem("Open Bizneo to log in", #selector(openBizneo)))
