@@ -5,5 +5,5 @@
 /// never drift from the binary. Bump it here and nowhere else.
 public enum AppInfo {
     public static let name = "Bizneo Companion"
-    public static let version = "0.2.0"
+    public static let version = "0.3.0"
 }
