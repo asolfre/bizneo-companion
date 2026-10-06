@@ -145,9 +145,25 @@ copy, and `BizneoCore` has no business holding them.
       asked for, so the toggle could never be turned on. The toggle now writes through
       a `Binding` setter, so writing back the real status can't trigger it again. Other
       errors are shown inline rather than beeped.
-    - Apple's header requires the app to be code signed. `build_app.sh` only ad-hoc
-      signs, so whether this works on a local build has to be tested at runtime, from
-      `/Applications`, across a real logout and login.
+    - Apple's header requires the app to be code signed, and `build_app.sh` only
+      ad-hoc signs. **Runtime result:** it works. After a restart, macOS's login-item
+      database (`sfltool dumpbtm`) held an `enabled, allowed` record for the running
+      build in `/Applications`, and the app started about two minutes after boot. The app
+      wasn't in the "Reopen windows" relaunch list, so the login item is what started it.
+      Switching the toggle off and on reached the same record (its generation went
+      1 → 3).
+    - **Each build is a separate login item.** With no Team ID, macOS identifies an
+      ad-hoc app by its build hash (CDHash), which changes on every `build_app.sh`.
+      Installing a new build leaves the old record behind, and the toggle reads the
+      status for the running build's hash. After updating, the toggle may show off
+      while an old record still starts the app at login. Not observed yet: check it
+      on the next update.
+    - **Untested:** the *Approve in System Settings…* path. For this kind of login
+      item, System Settings seems to offer only removal (which correctly reads as
+      off), not blocking, so `.requiresApproval` may be unreachable. The code is
+      cheap and follows the header, so it stays. **Assumed, not verified:**
+      that the app no longer starts at login after a removal in System Settings
+      (no logout was possible when this was tested).
 
 - **Advanced**
   - `manualCookie` — `SecureField`
