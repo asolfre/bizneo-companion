@@ -379,6 +379,11 @@ enum SelfTest {
         check(!AppInfo.version.isEmpty, "version non-empty", AppInfo.version)
         check(AppInfo.version.range(of: #"^\d+\.\d+"#, options: .regularExpression) != nil,
               "version looks like semver", AppInfo.version)
+        // build_app.sh's BCBuild: "" at a release tag, the commit otherwise, nil unbundled.
+        check(AppInfo.display(version: "0.3.0", build: "") == "0.3.0", "release build shows the bare version")
+        check(AppInfo.display(version: "0.3.0", build: "d8c9728") == "0.3.0+d8c9728", "branch build shows its commit")
+        check(AppInfo.display(version: "0.3.0", build: "d8c9728.dirty") == "0.3.0+d8c9728.dirty", "uncommitted changes show .dirty")
+        check(AppInfo.display(version: "0.3.0", build: nil) == "0.3.0+dev", "unbundled (swift run) shows +dev")
 
         print(failures == 0 ? "\nALL PASSED ✅" : "\n\(failures) FAILED ❌")
         return failures == 0 ? 0 : 1

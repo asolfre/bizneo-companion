@@ -88,6 +88,11 @@ open BizneoCompanion.app
 #    set Tenant, User ID and your Chrome profile — see “Finding your details” below
 ```
 
+The version shows in the menu header and in `BizneoCompanion.app/Contents/MacOS/BizneoCompanion --version`.
+A build of a release tag shows just the version (`0.3.0`). Anything else shows the commit
+it was built from (`0.3.0+d8c9728`, plus `.dirty` with uncommitted changes), so a
+development build can't be mistaken for a release.
+
 The first time it reads your cookie — and again after you change the Chrome profile
 — macOS shows a Keychain prompt ("Chrome Safe Storage"). Click **Always Allow**.
 
