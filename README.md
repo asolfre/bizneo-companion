@@ -34,7 +34,7 @@ Bizneo Companion puts your running time balance right in the menu bar and lets y
            ─────────────────────────────  │
            Pending changes (2)         ▸  │
            ─────────────────────────────  │
-           Refresh now · Edit config · Quit
+           Refresh now · Settings… · Quit
          ╰───────────────────────────────╯
 ```
 
@@ -68,6 +68,7 @@ Bizneo Companion puts your running time balance right in the menu bar and lets y
 | 🏠 **Telework by default** | Configurable office/telework mode |
 | 🏖️ **Day‑off aware** | Free "Fridom" Fridays don't count against you |
 | 🔄 **Auto‑refresh** | Every 10 min (configurable) + on demand |
+| ⚙️ **Settings window** | Every option in a real form — no JSON editing, applies without a restart |
 | 🪶 **Tiny & native** | Swift menu‑bar agent, no Dock icon, no Electron |
 
 ## Quick start
@@ -79,16 +80,15 @@ Bizneo Companion puts your running time balance right in the menu bar and lets y
 # 1) Build the app
 ./build_app.sh                      # → BizneoCompanion.app
 
-# 2) Point it at your account (see “Finding your details” below)
-open "$HOME/Library/Application Support/BizneoCompanion/config.json"
-#    set "tenant", "userId", and your Chrome "chromeProfile"
-
-# 3) Launch it
+# 2) Launch it
 open BizneoCompanion.app
+
+# 3) Point it at your account: menu → Settings…
+#    set Tenant, User ID and your Chrome profile — see “Finding your details” below
 ```
 
-On first run macOS shows **one Keychain prompt** ("Chrome Safe Storage") — click
-**Always Allow** so the app can read your Chrome session cookie.
+The first time it reads your cookie — and again after you change the Chrome profile
+— macOS shows a Keychain prompt ("Chrome Safe Storage"). Click **Always Allow**.
 
 <details>
 <summary><b>Finding your tenant &amp; user id</b></summary>
@@ -140,8 +140,17 @@ https://<your-company>.bizneohr.com/time-attendance/my-logs/<your-user-id>
 
 ## Configuration
 
-Stored at `~/Library/Application Support/BizneoCompanion/config.json` (or menu →
-**Edit configuration…**). Highlights:
+Menu → **Settings…** (⌘, while the menu is open) edits every option in a grouped form
+and applies changes immediately — no restart. It also carries an **Open at login**
+toggle, which is a system login item rather than a config field; for that to survive
+reliably, keep `BizneoCompanion.app` in `/Applications` (`SMAppService` registers the
+app at whatever path it's running from). If macOS has blocked it, the toggle offers
+**Approve in System Settings…**. Changing the default project also replaces the one
+last picked from **Check in ▸**.
+
+Settings writes to `~/Library/Application Support/BizneoCompanion/config.json`, still
+editable by hand if you prefer (Settings → *Advanced* → **Open config file…**).
+Highlights:
 
 | Key | What it does | Default |
 |---|---|---|

@@ -258,12 +258,30 @@ enum SelfTest {
         check(dc.dropdownSecondsScope == .today, "default dropdownSecondsScope == today", dc.dropdownSecondsScope.rawValue)
         check(dc.leaveByScope == .none, "default leaveByScope == none", dc.leaveByScope.rawValue)
         // Config has a hand-written init(from:); a field missing a decodeIfPresent line
-        // there survives compilation and silently resets on every load. Round-trip it.
-        var custom = Config(); custom.leaveByScope = .month; custom.barMetric = .today
-        if let data = try? JSONEncoder().encode(custom),
-           let back = try? JSONDecoder().decode(Config.self, from: data) {
-            check(back.leaveByScope == .month, "leaveByScope survives encode→decode", back.leaveByScope.rawValue)
-            check(back.barMetric == .today, "barMetric survives encode→decode", back.barMetric.rawValue)
+        // there survives compilation and silently resets on every load — which the
+        // Settings window would then write back over the real value. Round-trip *every*
+        // field at a non-default value: a dropped one returns as its default, so its
+        // line goes missing from the re-encoded JSON and gets named below.
+        let custom = Config(tenant: "acme", userId: "42", chromeProfile: "Profile 7",
+                            refreshSeconds: 900, weekStartsMonday: false, includePending: false,
+                            dayOffScheduleNames: ["Someday"], enableClockActions: false,
+                            enableYearTotal: false, barMetric: .today, defaultTelework: false,
+                            defaultProjectId: "p-1", liveTick: false,
+                            barShowSecondsWhileWorking: true, dropdownSecondsScope: .all,
+                            leaveByScope: .month, manualCookie: "_hcmex_key=x")
+        let enc = JSONEncoder()
+        enc.outputFormatting = [.prettyPrinted, .sortedKeys]
+        func lines(_ d: Data) -> [String] {
+            String(decoding: d, as: UTF8.self)
+                .split(separator: "\n")
+                .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: " ,")) }
+        }
+        if let data = try? enc.encode(custom),
+           let back = try? JSONDecoder().decode(Config.self, from: data),
+           let again = try? enc.encode(back) {
+            let after = Set(lines(again))
+            let lost = lines(data).filter { !after.contains($0) }
+            check(lost.isEmpty, "every config field survives encode→decode", lost)
         } else {
             check(false, "config round-trips")
         }
