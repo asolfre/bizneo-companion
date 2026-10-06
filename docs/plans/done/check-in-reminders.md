@@ -71,7 +71,7 @@ company day off) is `BarState.offDuty` (`BarState.swift:46`) and never reminds.
 | R2 | "If the refresh fails, don't remind" made the feature silent on its most likely failure day: an expired session. | Inside a window, one **"Can't check your Bizneo status"** notice per window, with **Open Bizneo**, after the app's own retry also fails. **Not today** silences it too. |
 | R3 | A failed clock action's `NSAlert.runModal()` from an inactive menu-bar app could open behind other windows, pausing the refresh timer, while you believed you were checked in. | `doClock` activates the app before the alert. Fixes the menu path too. |
 | R4 | The lock flag is undocumented (`CGSession.h` lists five keys, not that one). | Missing key → unlocked. Log the session dictionary during manual testing. |
-| R5 | State changes were only noticed on the scheduled refresh, up to `refreshSeconds` (as much as 60 min). | Inside a window, refresh whenever the last success is older than the reminder interval. |
+| R5 | State changes were only noticed on the scheduled refresh, up to `refreshSeconds` (as much as 60 min). | Inside a window, refresh whenever the last refresh **attempt** is older than the reminder interval. *Changed during implementation:* the plan first said "last success", but while Bizneo is unreachable that is stale on every tick, which would retry every minute. Measured from attempts, a failing Bizneo is retried once per interval. |
 | R6 | No calendar was named. Bizneo's "today" is Europe/Madrid (`Calculator.swift:6-9`). | Windows and **Not today** use `Calculator.madridCalendar`. |
 | R7 | Banners hidden while the app is frontmost; first reminder spent on the permission prompt; default-mode timer paused by menus and alerts. | `willPresent`, permission at launch/enable, `.common` timer. |
 
@@ -91,6 +91,19 @@ company day off) is `BarState.offDuty` (`BarState.swift:46`) and never reminds.
   - a junk `manualCookie` produces one failure notice per window, and a clock action
     with it shows its error alert in front
   - the session dictionary, logged once locked and once unlocked
+
+## Implementation notes
+
+- **Self-test:** 49 new checks in the `reminders:` section (window parsing, every
+  branch of `Reminders.next`, `ChronoAction.isAllowed`), plus the three new fields in
+  the all-fields `Config` round-trip. Proved able to fail by breaking each of: the
+  `reminderWindows` decode line, the start-of-window rule, and the check-in state
+  guard. Each one was caught by name.
+- When the R1 guard refuses an action, `doClock` refreshes after the alert, because
+  the menu that offered the action was out of date.
+- **Not yet verified at runtime:** everything in the manual list above. The decision
+  logic is tested; the notification plumbing, the lock flag and the buttons have
+  never run on a real session.
 
 ## Out of scope
 

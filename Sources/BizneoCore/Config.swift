@@ -54,6 +54,14 @@ public struct Config: Codable {
     public var dropdownSecondsScope: DropdownSecondsScope
     /// Which backlog the "Leave by" time clears: `none`/`week`/`month`/`year`.
     public var leaveByScope: LeaveByScope
+    /// Send check-in reminders inside `reminderWindows`. Kept separate from the
+    /// windows so switching reminders off doesn't lose them.
+    public var remindersEnabled: Bool
+    /// Time ranges (Europe/Madrid) in which reminders may fire, e.g. "08:00-10:00".
+    /// See `Reminders.parseWindow`.
+    public var reminderWindows: [String]
+    /// Minutes between reminders inside a window.
+    public var reminderIntervalMinutes: Int
     /// Optional manual cookie override: `_hcmex_key=...; device_id=...`.
     /// When set, Chrome/Keychain is bypassed entirely.
     public var manualCookie: String?
@@ -74,6 +82,9 @@ public struct Config: Codable {
                 barShowSecondsWhileWorking: Bool = false,
                 dropdownSecondsScope: DropdownSecondsScope = .today,
                 leaveByScope: LeaveByScope = .none,
+                remindersEnabled: Bool = true,
+                reminderWindows: [String] = ["08:00-10:00", "14:00-15:30"],
+                reminderIntervalMinutes: Int = 15,
                 manualCookie: String? = nil) {
         self.tenant = tenant
         self.userId = userId
@@ -91,6 +102,9 @@ public struct Config: Codable {
         self.barShowSecondsWhileWorking = barShowSecondsWhileWorking
         self.dropdownSecondsScope = dropdownSecondsScope
         self.leaveByScope = leaveByScope
+        self.remindersEnabled = remindersEnabled
+        self.reminderWindows = reminderWindows
+        self.reminderIntervalMinutes = reminderIntervalMinutes
         self.manualCookie = manualCookie
     }
 
@@ -115,6 +129,9 @@ public struct Config: Codable {
         barShowSecondsWhileWorking = try c.decodeIfPresent(Bool.self, forKey: .barShowSecondsWhileWorking) ?? d.barShowSecondsWhileWorking
         dropdownSecondsScope = try c.decodeIfPresent(DropdownSecondsScope.self, forKey: .dropdownSecondsScope) ?? d.dropdownSecondsScope
         leaveByScope = try c.decodeIfPresent(LeaveByScope.self, forKey: .leaveByScope) ?? d.leaveByScope
+        remindersEnabled = try c.decodeIfPresent(Bool.self, forKey: .remindersEnabled) ?? d.remindersEnabled
+        reminderWindows = try c.decodeIfPresent([String].self, forKey: .reminderWindows) ?? d.reminderWindows
+        reminderIntervalMinutes = try c.decodeIfPresent(Int.self, forKey: .reminderIntervalMinutes) ?? d.reminderIntervalMinutes
         manualCookie = try c.decodeIfPresent(String.self, forKey: .manualCookie) ?? d.manualCookie
     }
 

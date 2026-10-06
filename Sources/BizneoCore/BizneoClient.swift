@@ -242,6 +242,9 @@ public final class BizneoClient {
     @discardableResult
     public func performChrono(_ action: ChronoAction) async throws -> ChronoState {
         let state = try await fetchChronoState()
+        guard action.isAllowed(from: state.status) else {
+            throw BizneoError.clockStateChanged(action: action.label, status: state.status)
+        }
         let csrf = state.csrfToken ?? ""
         let shift = state.shiftId ?? ""
         let uid = config.userId

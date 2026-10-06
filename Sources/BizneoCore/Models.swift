@@ -131,6 +131,8 @@ public enum BizneoError: Error, LocalizedError {
     case http(Int, String)
     case network(String)
     case parse(String)
+    /// A clock action that no longer fits Bizneo's current state; nothing was sent.
+    case clockStateChanged(action: String, status: ChronoStatus)
 
     public var errorDescription: String? {
         switch self {
@@ -139,6 +141,8 @@ public enum BizneoError: Error, LocalizedError {
         case .http(let c, _): return "Bizneo returned HTTP \(c)"
         case .network(let m): return "Network error: \(m)"
         case .parse(let m): return "Couldn't read timesheet: \(m)"
+        case .clockStateChanged(let action, let status):
+            return "Nothing sent: Bizneo's clock is now \(status.rawValue), so \"\(action)\" no longer applies."
         }
     }
 }
@@ -187,5 +191,30 @@ public enum ChronoAction: Equatable {
     case takeBreak
     case resume
     case checkOut
+
+    public var label: String {
+        switch self {
+        case .checkIn: return "Check in"
+        case .takeBreak: return "Take break"
+        case .resume: return "Resume"
+        case .checkOut: return "Check out"
+        }
+    }
+
+    /// Whether this action still makes sense from Bizneo's current `status`.
+    ///
+    /// `performChrono` checks this against freshly fetched state before posting. A
+    /// clock action can come from a menu built up to `refreshSeconds` ago or from a
+    /// reminder that sat in Notification Center for hours. Without the check, a
+    /// "Check in" pressed after checking in on the phone posts a second start to
+    /// Bizneo, with effects nobody has verified on a real timesheet.
+    public func isAllowed(from status: ChronoStatus) -> Bool {
+        switch self {
+        case .checkIn: return status == .stopped
+        case .takeBreak: return status == .working
+        case .resume: return status == .paused
+        case .checkOut: return status == .working || status == .paused
+        }
+    }
 }
 
