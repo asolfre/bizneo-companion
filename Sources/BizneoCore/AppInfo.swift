@@ -7,7 +7,7 @@ import Foundation
 /// never drift from the binary. Bump it here and nowhere else.
 public enum AppInfo {
     public static let name = "Bizneo Companion"
-    public static let version = "0.3.0"
+    public static let version = "0.4.0"
 
     /// Which build this is, from the `BCBuild` key `build_app.sh` writes: `""` for a
     /// release built at its own tag, the commit (`"d8c9728"`, or `"d8c9728.dirty"`
