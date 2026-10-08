@@ -10,7 +10,7 @@ final class StatusItemController: NSObject {
     private var config: Config
     private var client: BizneoClient
     private var timer: Timer?
-    private var lastError: String?
+    private var lastError: String?   // the last *refresh* failed; nil once one succeeds
     private var clockBusy = false
     private var lastRefreshAt: Date?
     private var displayTimer: Timer?
@@ -289,8 +289,21 @@ final class StatusItemController: NSObject {
         menu.removeAllItems()
         periodRows.removeAll()
 
+        func addError(_ err: String) {
+            menu.addItem(info("⚠︎ \(err)"))
+            if err.contains("logged in") || err.contains("cookie") {
+                menu.addItem(actionItem("Open Bizneo to log in", #selector(openBizneo)))
+            }
+        }
+
         if let s = snapshot {
             menu.addItem(header("\(AppInfo.name) v\(AppInfo.displayVersion)"))
+            // The figures below are the last good ones; say why the icon is ⚠︎
+            // (most often an expired session) instead of only in its tooltip.
+            if let err = lastError {
+                addError(err)
+                menu.addItem(.separator())
+            }
             menu.addItem(periodItem(s.today, isToday: true))
             menu.addItem(periodItem(s.week))
             menu.addItem(periodItem(s.month))
@@ -314,13 +327,10 @@ final class StatusItemController: NSObject {
             }
 
             menu.addItem(.separator())
-            menu.addItem(info("Updated \(timeString(s.generatedAt))"))
+            menu.addItem(info((lastError == nil ? "Updated " : "Last successful update ") + timeString(s.generatedAt)))
         } else if let err = lastError {
             menu.addItem(header("\(AppInfo.name) v\(AppInfo.displayVersion)"))
-            menu.addItem(info("⚠︎ \(err)"))
-            if err.contains("logged in") || err.contains("cookie") {
-                menu.addItem(actionItem("Open Bizneo to log in", #selector(openBizneo)))
-            }
+            addError(err)
             menu.addItem(.separator())
         } else {
             menu.addItem(info("Loading…"))
@@ -553,14 +563,16 @@ final class StatusItemController: NSObject {
                 _ = try await client.performChrono(action)
                 self.refresh()   // reload state + balances
             } catch {
-                self.lastError = (error as? BizneoError)?.errorDescription ?? error.localizedDescription
+                // Not `lastError`: that means "the last refresh failed", which the
+                // menu and the reminders read. A failed clock action isn't one.
+                let message = (error as? BizneoError)?.errorDescription ?? error.localizedDescription
                 // A clock action can come from a reminder while another app is in
                 // front. Without activating, this modal opens behind other windows,
                 // and the default-mode refresh timer waits until it's found.
                 NSApp.activate(ignoringOtherApps: true)
                 let alert = NSAlert()
                 alert.messageText = "Clock action failed"
-                alert.informativeText = self.lastError ?? "Unknown error"
+                alert.informativeText = message
                 alert.alertStyle = .critical
                 if let icon = self.alertIcon("exclamationmark.triangle.fill", color: .systemRed) { alert.icon = icon }
                 alert.runModal()

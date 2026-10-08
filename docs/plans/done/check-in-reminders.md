@@ -116,6 +116,15 @@ company day off) is `BarState.offDuty` (`BarState.swift:46`) and never reminds.
   Fixed once in `BizneoClient.isLoginResponse`, which every request passes through,
   with self-test cases for each signal. Removing `/sessions/new` makes the first one
   fail. The captures stay outside the repo.
+- **Found in the same test:** once a session expired *after* a successful refresh,
+  the menu kept showing the last good figures with "Updated HH:MM". The ⚠︎ icon was
+  explained only in its tooltip, and **Open Bizneo to log in** appeared only when
+  there was no data at all. That predates this plan, but the login-page fix above
+  makes it the normal expired-session path. The menu now shows the error and the
+  login item under the header, and says "Last successful update". `lastError` now
+  means "the last refresh failed" only: `doClock` had also written its failures
+  there, which the menu and `Reminders.Context.refreshFailed` would have misread
+  as a refresh failure.
 
 ## Out of scope
 
