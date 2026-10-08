@@ -160,6 +160,9 @@ copy, and `BizneoCore` has no business holding them.
       held a single enabled record for the new hash, and the old one was gone. The
       v0.3.0 release notes tell users to check the toggle after updating. Whether the
       old record would still have started the app at login was not tested.
+      **Seen again on 2026-10-08**, installing a development build of the check-in
+      reminders branch: the toggle had to be switched on again. So the release notes
+      say it plainly from v0.4.0 on.
     - **Untested:** the *Approve in System Settings…* path. For this kind of login
       item, System Settings seems to offer only removal (which correctly reads as
       off), not blocking, so `.requiresApproval` may be unreachable. The code is

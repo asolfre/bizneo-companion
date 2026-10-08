@@ -101,9 +101,17 @@ company day off) is `BarState.offDuty` (`BarState.swift:46`) and never reminds.
   guard. Each one was caught by name.
 - When the R1 guard refuses an action, `doClock` refreshes after the alert, because
   the menu that offered the action was out of date.
-- **Not yet verified at runtime:** everything in the manual list above. The decision
-  logic is tested; the notification plumbing, the lock flag and the buttons have
-  never run on a real session.
+- **Manual test results (2026-10-08, build `0.3.0+fc0af82`):**
+
+  | # | Check | Result |
+  |---|---|---|
+  | a | Permission prompt | ✅ by deduction: notifications were delivered, and the app only asks at launch or when reminders are switched on |
+  | b | Reminder with **Resume** | ✅ |
+  | c | **Not today** silences the rest of the day | ✅ (`remindersSnoozedDay` set, nothing more fired) |
+  | d | Locked screen | ✅ `CGSSessionScreenIsLocked` reads `Yes` while locked and is absent while unlocked (via `ioreg`, the same session dictionary the app reads). A reminder not firing while locked follows from it; not watched directly. |
+  | e | A refused clock action's alert comes to the front | ⚠️ **not run**: it needs a real break taken on the website. The refusal itself is self-tested. |
+  | f | Failure notice inside a window | ✅, after the login-page fix below |
+  | — | Menu explains ⚠︎ while showing older figures | ✅, after the menu fix below |
 - **Found in manual testing (2026-10-08):** a junk `manualCookie` produced no failure
   notice. Part of that was a "Not today" pressed earlier, which by design also
   silences failure notices. The real cause was elsewhere: the menu showed "ahead
