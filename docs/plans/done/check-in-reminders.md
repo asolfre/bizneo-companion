@@ -104,6 +104,18 @@ company day off) is `BarState.offDuty` (`BarState.swift:46`) and never reminds.
 - **Not yet verified at runtime:** everything in the manual list above. The decision
   logic is tested; the notification plumbing, the lock flag and the buttons have
   never run on a real session.
+- **Found in manual testing (2026-10-08):** a junk `manualCookie` produced no failure
+  notice. Part of that was a "Not today" pressed earlier, which by design also
+  silences failure notices. The real cause was elsewhere: the menu showed "ahead
+  0:00" everywhere and "Clock state unknown", so the refresh had *succeeded* on
+  empty data. A `curl` replay of the client's requests showed that a junk cookie,
+  an expired-looking one (`_hcmex_key=expired; device_id=expired`) and no cookie all
+  302 to **`/sessions/new`**, a Spanish "Iniciar sesión" page answering 200. The
+  client only recognised `/users/sign_in`, `/welcome` and English page text, so a
+  dead session was never reported. That predates this plan, but it disabled R2.
+  Fixed once in `BizneoClient.isLoginResponse`, which every request passes through,
+  with self-test cases for each signal. Removing `/sessions/new` makes the first one
+  fail. The captures stay outside the repo.
 
 ## Out of scope
 
