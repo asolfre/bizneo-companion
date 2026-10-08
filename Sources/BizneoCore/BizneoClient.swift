@@ -83,20 +83,33 @@ public final class BizneoClient {
         guard let http = response as? HTTPURLResponse else {
             throw BizneoError.network("No HTTP response")
         }
-        // A redirect to the login/welcome page (or 401/403) means the session is dead.
         let finalPath = http.url?.path ?? ""
-        if http.statusCode == 401 || http.statusCode == 403
-            || finalPath.contains("/welcome") || finalPath.contains("/users/sign_in") {
+        let html = String(decoding: data, as: UTF8.self)
+        if Self.isLoginResponse(status: http.statusCode, finalPath: finalPath, html: html) {
             throw BizneoError.notAuthenticated
         }
         guard (200..<300).contains(http.statusCode) else {
             throw BizneoError.http(http.statusCode, finalPath)
         }
-        let html = String(decoding: data, as: UTF8.self)
-        if html.contains("id=\"new_user\"") || html.contains("Sign in to your account") {
-            throw BizneoError.notAuthenticated
-        }
         return html
+    }
+
+    /// Whether Bizneo answered with its login page instead of the data asked for,
+    /// i.e. the session is missing, expired or invalid.
+    ///
+    /// Without a session, every endpoint redirects (302) to the login page and ends
+    /// in a 200, so status codes alone don't show it. Matching on the redirect
+    /// target doesn't depend on the page's language. As captured on 2026-10-08, a
+    /// junk, an expired-looking and a missing cookie all land on `/sessions/new`
+    /// (a Spanish "Iniciar sesión" page). The older `/users/sign_in` and `/welcome`
+    /// targets, and the English page markers, didn't match it, so a dead session
+    /// was accepted as an empty timesheet ("ahead 0:00", "Clock state unknown")
+    /// instead of reported. Those older checks are kept in case they still apply
+    /// to other tenants.
+    public static func isLoginResponse(status: Int, finalPath: String, html: String) -> Bool {
+        status == 401 || status == 403
+            || ["/sessions/new", "/users/sign_in", "/welcome"].contains { finalPath.contains($0) }
+            || html.contains("id=\"new_user\"") || html.contains("Sign in to your account")
     }
 
     // MARK: - Endpoints

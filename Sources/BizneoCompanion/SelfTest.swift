@@ -373,6 +373,19 @@ enum SelfTest {
         check(ChronoAction.checkOut.isAllowed(from: .working) && ChronoAction.checkOut.isAllowed(from: .paused)
               && !ChronoAction.checkOut.isAllowed(from: .stopped), "check out when working or paused")
 
+        // Session detection. Without a session every endpoint ends, after a 302, on
+        // the login page with a 200. Paths and status as captured on 2026-10-08.
+        print("session detection:")
+        let login = BizneoClient.isLoginResponse
+        check(login(200, "/sessions/new", "<title>Iniciar sesión</title>"), "redirect to /sessions/new → not logged in")
+        check(login(200, "/users/sign_in", ""), "legacy /users/sign_in → not logged in")
+        check(login(200, "/welcome", ""), "legacy /welcome → not logged in")
+        check(login(401, "/chrono/1/hub_chrono", "") && login(403, "/chrono/1/hub_chrono", ""), "401/403 → not logged in")
+        check(login(200, "/x", "<form id=\"new_user\">"), "legacy login form → not logged in")
+        check(!login(200, "/chrono/1/hub_chrono", hub), "real hub_chrono page → logged in")
+        check(!login(200, "/time-attendance/my-logs/1", logs), "real my-logs page → logged in")
+        check(!login(500, "/chrono/1/hub_chrono", ""), "500 is an HTTP error, not a login page")
+
         // Guards the constant build_app.sh scrapes for the Info.plist version.
         print("app info:")
         check(!AppInfo.name.isEmpty, "name non-empty", AppInfo.name)
