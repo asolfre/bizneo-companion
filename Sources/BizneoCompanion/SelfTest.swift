@@ -270,7 +270,7 @@ enum SelfTest {
                             barShowSecondsWhileWorking: true, dropdownSecondsScope: .all,
                             leaveByScope: .month, remindersEnabled: false,
                             reminderWindows: ["09:00-09:30"], reminderIntervalMinutes: 30,
-                            manualCookie: "_hcmex_key=x")
+                            manualCookie: "_hcmex_key=x", slackSync: true)
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys]
         func lines(_ d: Data) -> [String] {
@@ -292,9 +292,28 @@ enum SelfTest {
            let old = try? JSONDecoder().decode(Config.self, from: legacy) {
             check(old.leaveByScope == .none, "config without leaveByScope defaults to none", old.leaveByScope.rawValue)
             check(old.tenant == "x", "legacy config still decodes its own keys", old.tenant)
+            check(old.slackSync == false, "config without slackSync defaults to off")
         } else {
             check(false, "legacy config decodes")
         }
+
+        // Slack sync (#13): the state → status mapping and the manual-status guard.
+        print("slack sync:")
+        let expect: [(BarState, SlackStatus.Target?)] = [
+            (.working, SlackStatus.working), (.onBreak, SlackStatus.onBreak),
+            (.notCheckedIn, SlackStatus.off), (.checkedOutEarly, SlackStatus.off),
+            (.doneForToday, SlackStatus.off), (.offDuty, SlackStatus.off), (.unknown, nil),
+        ]
+        for (state, want) in expect {
+            check(SlackStatus.target(for: state) == want, "slack target for \(state.rawValue)",
+                  SlackStatus.target(for: state) as Any)
+        }
+        check(SlackStatus.working.presence == "auto" && SlackStatus.off.presence == "away"
+              && SlackStatus.disabled.presence == "auto", "presence only uses auto/away")
+        check(SlackStatus.isOwned(text: "", emoji: ""), "empty status is ours to set")
+        check(SlackStatus.isOwned(text: "Working", emoji: ":computer:"), "our working status is ours")
+        check(!SlackStatus.isOwned(text: "Vacation", emoji: ":palm_tree:"), "manual status is left alone")
+        check(!SlackStatus.isOwned(text: "Working", emoji: ":palm_tree:"), "same text, other emoji is manual")
 
         // Check-in reminders (#16): window parsing, the due/not-due decision, and the
         // clock-action state guard. See docs/plans/done/check-in-reminders.md.

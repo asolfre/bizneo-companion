@@ -30,9 +30,16 @@ final class StatusItemController: NSObject {
     private lazy var notifier = ReminderNotifier { [weak self] in self?.handleReminderAction($0) }
     private static let snoozeKey = "remindersSnoozedDay"
 
+    // MARK: Slack sync (#13)
+    /// Cached so a refresh doesn't hit the Keychain. nil while the sync is off.
+    private var slackToken: String?
+    /// Last target Slack confirmed, to skip re-clearing an already-cleared status.
+    private var lastSlackTarget: SlackStatus.Target?
+
     init(config: Config) {
         self.config = config
         self.client = BizneoClient(config: config)
+        self.slackToken = config.slackSync ? SlackToken.read() : nil
         super.init()
     }
 
@@ -88,6 +95,29 @@ final class StatusItemController: NSObject {
         refreshTitle()
         rebuildMenu(snapshot: snap)
         startOrStopDisplayTimer()
+        syncSlack(snap.barState)
+    }
+
+    // MARK: - Slack (#13)
+
+    /// Only from `apply`: a failed refresh (`applyError`) must not touch Slack, and
+    /// `doClock` already ends in a refresh.
+    private func syncSlack(_ state: BarState) {
+        guard config.slackSync, let token = slackToken,
+              let target = SlackStatus.target(for: state) else { return }
+        // Working/break are re-sent every refresh to roll the expiry forward, so a
+        // quit or sleep lets Slack drop the status by itself. Clearing needs no renewal.
+        if target.clears && target == lastSlackTarget { return }
+        let expiresAt = Date().addingTimeInterval(TimeInterval(2 * config.refreshSeconds))
+        Task {
+            do {
+                let result = try await SlackStatus.push(target, token: token, expiresAt: expiresAt)
+                lastSlackTarget = result == .applied ? target : nil
+            } catch {
+                lastSlackTarget = nil   // retry on the next refresh
+                NSLog("Slack sync failed: \(error.localizedDescription)")
+            }
+        }
     }
 
     // MARK: - Live tick
@@ -638,8 +668,19 @@ final class StatusItemController: NSObject {
         // The quick "Check in" prefers the last project picked from the submenu,
         // which would otherwise shadow a default chosen here forever.
         if new.defaultProjectId != config.defaultProjectId { lastProjectId = nil }
+        let oldSlackToken = slackToken
         try? new.save()
         config = new
+        slackToken = new.slackSync ? SlackToken.read() : nil
+        lastSlackTarget = nil
+        // Switched off, or the token replaced: hand the old status and presence back
+        // rather than leaving "Working" or a sticky "away" behind.
+        if let old = oldSlackToken, old != slackToken {
+            Task {
+                do { _ = try await SlackStatus.push(SlackStatus.disabled, token: old, expiresAt: Date()) }
+                catch { NSLog("Slack cleanup failed: \(error.localizedDescription)") }
+            }
+        }
         client = BizneoClient(config: new)   // drops the cached cookie and year totals
         scheduleTimer()                      // the interval may have changed
         // Rebuild now rather than waiting for the fetch: enableClockActions and
