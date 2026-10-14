@@ -1,6 +1,31 @@
 import Foundation
 import Security
 
+/// Which parts of Slack the sync writes.
+public enum SlackSyncMode: String, Codable, CaseIterable {
+    case statusAndPresence, statusOnly, presenceOnly
+
+    public var setsStatus: Bool { self != .presenceOnly }
+    public var setsPresence: Bool { self != .statusOnly }
+
+    /// The mode covering exactly these parts; nil when neither.
+    public static func covering(status: Bool, presence: Bool) -> SlackSyncMode? {
+        switch (status, presence) {
+        case (true, true): return .statusAndPresence
+        case (true, false): return .statusOnly
+        case (false, true): return .presenceOnly
+        case (false, false): return nil
+        }
+    }
+
+    /// What to undo when moving from `old` to `new` (nil `new` = sync off or token
+    /// replaced): the parts the old mode wrote that the new one no longer does.
+    public static func cleanup(from old: SlackSyncMode, to new: SlackSyncMode?) -> SlackSyncMode? {
+        covering(status: old.setsStatus && !(new?.setsStatus ?? false),
+                 presence: old.setsPresence && !(new?.setsPresence ?? false))
+    }
+}
+
 /// Mirrors the clock state into Slack's status and presence (#13).
 /// See `docs/plans/done/slack-status-sync.md`.
 public enum SlackStatus {
@@ -38,22 +63,31 @@ public enum SlackStatus {
 
     public enum PushResult: Equatable { case applied, skippedManualStatus }
 
-    /// Read the current status, then set status + presence if it's ours to change.
-    /// Needs a user token with `users.profile:read`, `users.profile:write`, `users:write`.
-    public static func push(_ t: Target, token: String, expiresAt: Date) async throws -> PushResult {
-        let current = try await call("users.profile.get", token: token, json: nil)
-        let profile = current["profile"] as? [String: Any] ?? [:]
-        guard isOwned(text: profile["status_text"] as? String ?? "",
-                      emoji: profile["status_emoji"] as? String ?? "") else {
-            return .skippedManualStatus
+    /// Write the parts `mode` covers. Status: only if the current one is ours to
+    /// change. Presence: still follows Bizneo in `presenceOnly` (status untouched
+    /// there); in `statusAndPresence` a manual status blocks both, except for the
+    /// `disabled` cleanup, which always hands presence back.
+    /// Scopes: status needs `users.profile:read` + `users.profile:write`, presence `users:write`.
+    public static func push(_ t: Target, mode: SlackSyncMode, token: String, expiresAt: Date) async throws -> PushResult {
+        var result = PushResult.applied
+        if mode.setsStatus {
+            let current = try await call("users.profile.get", token: token, json: nil)
+            let profile = current["profile"] as? [String: Any] ?? [:]
+            if isOwned(text: profile["status_text"] as? String ?? "",
+                       emoji: profile["status_emoji"] as? String ?? "") {
+                _ = try await call("users.profile.set", token: token, json: ["profile": [
+                    "status_text": t.text,
+                    "status_emoji": t.emoji,
+                    "status_expiration": t.clears ? 0 : Int(expiresAt.timeIntervalSince1970),
+                ]])
+            } else {
+                result = .skippedManualStatus
+            }
         }
-        _ = try await call("users.profile.set", token: token, json: ["profile": [
-            "status_text": t.text,
-            "status_emoji": t.emoji,
-            "status_expiration": t.clears ? 0 : Int(expiresAt.timeIntervalSince1970),
-        ]])
-        _ = try await call("users.setPresence", token: token, json: ["presence": t.presence])
-        return .applied
+        if mode.setsPresence && (result == .applied || t == disabled) {
+            _ = try await call("users.setPresence", token: token, json: ["presence": t.presence])
+        }
+        return result
     }
 
     public struct APIError: Error, LocalizedError {

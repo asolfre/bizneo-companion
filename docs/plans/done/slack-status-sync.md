@@ -18,13 +18,25 @@ stage.*
 - **Toggle:** `Config.slackSync` (default off), in Settings → Slack. Disabled until a
   token is entered. Turning it off (or clearing/replacing the token) clears our
   status and sets presence back to `auto` with the old token.
+- **Mode:** `Config.slackMode` (segmented picker, default `statusAndPresence`):
+
+  | Mode | Writes | Token scopes |
+  |---|---|---|
+  | `statusAndPresence` | status + presence | `users.profile:read`, `users.profile:write`, `users:write` |
+  | `statusOnly` | status; presence never touched (no sticky `away`) | `users.profile:read`, `users.profile:write` |
+  | `presenceOnly` | presence only; still follows Bizneo even under a manual status | `users:write` |
+
+  In `statusAndPresence` a manual status blocks presence too (you're on vacation,
+  don't flip the dot). Narrowing the mode undoes what the old one wrote and the new
+  one won't — `SlackSyncMode.cleanup(from:to:)`: e.g. → `presenceOnly` clears our
+  status, → `statusOnly` sets presence back to `auto`. Widening needs no cleanup.
 - **Token:** a user token (`xoxp-…`) with `users.profile:read`, `users.profile:write`,
   `users:write`. Stored in the login Keychain (`SlackToken`, service
   `BizneoCompanion.Slack`), never in `config.json`. The ad-hoc-signed app may
   re-prompt for Keychain access after a rebuild.
 - **Rolling expiry:** working/break statuses expire after 2 × `refreshSeconds` and are
   re-sent on every refresh, so a quit, crash or sleep lets Slack drop them by itself.
-  A clear is sent once per state change.
+  A clear, or presence alone, is sent once per state change.
 - **Manual statuses win:** before writing, `users.profile.get` reads the current
   status. Unless it is empty or exactly one of ours (text + emoji), nothing is
   changed — presence included.
@@ -54,8 +66,11 @@ stage.*
 
 ## Verification
 
-- `--selftest`: all seven state mappings, presence values, the ownership guard, and
-  the `slackSync` config round-trip / legacy default.
+- `--selftest`: all seven state mappings, presence values, the ownership guard, the
+  three modes' `setsStatus`/`setsPresence`, the mode-change cleanup table, and the
+  `slackSync`/`slackMode` config round-trip / legacy defaults.
 - Manual, in a real workspace (to record here): check in → 💻; break → ☕ + away;
   check out → cleared + away; set a manual status → left alone; quit → status
-  expires; toggle off → cleared + `auto`.
+  expires; toggle off → cleared + `auto`; `presenceOnly` with a manual status →
+  status kept, presence follows; `statusOnly` → presence never changes; switch
+  `statusAndPresence` → `presenceOnly` → our status cleared.

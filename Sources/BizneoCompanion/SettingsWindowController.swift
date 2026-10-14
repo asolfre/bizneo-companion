@@ -242,14 +242,21 @@ private struct SettingsView: View {
 
     private var slackSection: some View {
         Section("Slack") {
-            Toggle("Sync status to Slack", isOn: $cfg.slackSync)
+            Toggle("Sync to Slack", isOn: $cfg.slackSync)
                 .disabled(trimmedSlackToken.isEmpty)
+            Picker("Update", selection: $cfg.slackMode) {
+                Text("Status & presence").tag(SlackSyncMode.statusAndPresence)
+                Text("Status").tag(SlackSyncMode.statusOnly)
+                Text("Presence").tag(SlackSyncMode.presenceOnly)
+            }
+            .pickerStyle(.segmented)
+            .disabled(!cfg.slackSync)
             HStack {
                 SecureField("User token", text: $slackToken, prompt: Text("xoxp-…"))
                 Button("Clear") { slackToken = ""; cfg.slackSync = false }
                     .disabled(slackToken.isEmpty)
             }
-            Text("Working → 💻, on a break → ☕ and away, checked out → cleared and away. A status you set yourself is never replaced. Needs a user token with users.profile:read, users.profile:write and users:write; stored in the Keychain.")
+            Text("Status: working → 💻, on a break → ☕, checked out → cleared; a status you set yourself is never replaced. Presence: working → auto, otherwise away. Token scopes: users.profile:read + users.profile:write for status, users:write for presence. Stored in the Keychain.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

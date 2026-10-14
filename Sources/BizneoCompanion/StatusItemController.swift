@@ -105,13 +105,16 @@ final class StatusItemController: NSObject {
     private func syncSlack(_ state: BarState) {
         guard config.slackSync, let token = slackToken,
               let target = SlackStatus.target(for: state) else { return }
-        // Working/break are re-sent every refresh to roll the expiry forward, so a
-        // quit or sleep lets Slack drop the status by itself. Clearing needs no renewal.
-        if target.clears && target == lastSlackTarget { return }
+        // Working/break statuses are re-sent every refresh to roll the expiry forward,
+        // so a quit or sleep lets Slack drop them by itself. Anything else (a clear,
+        // or presence alone) is sent once per change.
+        let renews = config.slackMode.setsStatus && !target.clears
+        if !renews && target == lastSlackTarget { return }
+        let mode = config.slackMode
         let expiresAt = Date().addingTimeInterval(TimeInterval(2 * config.refreshSeconds))
         Task {
             do {
-                let result = try await SlackStatus.push(target, token: token, expiresAt: expiresAt)
+                let result = try await SlackStatus.push(target, mode: mode, token: token, expiresAt: expiresAt)
                 lastSlackTarget = result == .applied ? target : nil
             } catch {
                 lastSlackTarget = nil   // retry on the next refresh
@@ -669,15 +672,18 @@ final class StatusItemController: NSObject {
         // which would otherwise shadow a default chosen here forever.
         if new.defaultProjectId != config.defaultProjectId { lastProjectId = nil }
         let oldSlackToken = slackToken
+        let oldSlackMode = config.slackMode
         try? new.save()
         config = new
         slackToken = new.slackSync ? SlackToken.read() : nil
         lastSlackTarget = nil
-        // Switched off, or the token replaced: hand the old status and presence back
-        // rather than leaving "Working" or a sticky "away" behind.
-        if let old = oldSlackToken, old != slackToken {
+        // Undo what the old setup wrote and the new one won't (sync off, token
+        // replaced, or a narrower mode), so no "Working" or sticky "away" is left behind.
+        if let old = oldSlackToken,
+           let undo = SlackSyncMode.cleanup(from: oldSlackMode,
+                                            to: old == slackToken ? new.slackMode : nil) {
             Task {
-                do { _ = try await SlackStatus.push(SlackStatus.disabled, token: old, expiresAt: Date()) }
+                do { _ = try await SlackStatus.push(SlackStatus.disabled, mode: undo, token: old, expiresAt: Date()) }
                 catch { NSLog("Slack cleanup failed: \(error.localizedDescription)") }
             }
         }
