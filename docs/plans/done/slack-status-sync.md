@@ -17,7 +17,8 @@ stage.*
 
 - **Toggle:** `Config.slackSync` (default off), in Settings → Slack. Disabled until a
   token is entered. Turning it off (or clearing/replacing the token) clears our
-  status and sets presence back to `auto` with the old token.
+  status and sets presence back to `auto` with the old token. User-facing setup
+  (creating the Slack app and token) lives in the README → *Slack sync*.
 - **Mode:** `Config.slackMode` (segmented picker, default `statusAndPresence`):
 
   | Mode | Writes | Token scopes |
