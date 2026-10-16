@@ -70,8 +70,17 @@ stage.*
 - `--selftest`: all seven state mappings, presence values, the ownership guard, the
   three modes' `setsStatus`/`setsPresence`, the mode-change cleanup table, and the
   `slackSync`/`slackMode` config round-trip / legacy defaults.
-- Manual, in a real workspace (to record here): check in → 💻; break → ☕ + away;
-  check out → cleared + away; set a manual status → left alone; quit → status
-  expires; toggle off → cleared + `auto`; `presenceOnly` with a manual status →
-  status kept, presence follows; `statusOnly` → presence never changes; switch
-  `statusAndPresence` → `presenceOnly` → our status cleared.
+- Manual, in a real workspace (build `0.4.0+e023c8a`):
+
+  | Check | Result |
+  |---|---|
+  | Presence follows the clock state | ✅ passed |
+  | Check in → 💻 Working | not yet tested |
+  | Break → ☕ + away | not yet tested |
+  | Check out → cleared + away | not yet tested |
+  | Manual status → left alone | not yet tested |
+  | `presenceOnly` with a manual status → status kept, presence follows | not yet tested |
+  | `statusOnly` → presence never changes | not yet tested |
+  | `statusAndPresence` → `presenceOnly` → our status cleared | not yet tested |
+  | Quit while working → status expires | not yet tested |
+  | Toggle off → cleared + `auto` | not yet tested |
