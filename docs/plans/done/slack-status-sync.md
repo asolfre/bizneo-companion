@@ -68,7 +68,7 @@ stage.*
 
 ## Follow-ups (after the first PR)
 
-Shipped in a second PR, once presence-only became the default:
+Shipped in [PR #21](https://github.com/asolfre/bizneo-companion/pull/21), once presence-only became the default:
 
 1. **Quit resets presence.** Statuses expire on their own, presence doesn't, so a
    quit on a break or after checkout left a sticky `away`. `AppDelegate`'s
