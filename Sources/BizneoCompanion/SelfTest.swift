@@ -271,7 +271,7 @@ enum SelfTest {
                             leaveByScope: .month, remindersEnabled: false,
                             reminderWindows: ["09:00-09:30"], reminderIntervalMinutes: 30,
                             manualCookie: "_hcmex_key=x", slackSync: true,
-                            slackMode: .presenceOnly)
+                            slackMode: .statusAndPresence)
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys]
         func lines(_ d: Data) -> [String] {
@@ -317,7 +317,7 @@ enum SelfTest {
         check(!SlackStatus.isOwned(text: "Working", emoji: ":palm_tree:"), "same text, other emoji is manual")
         check(!SlackSyncMode.presenceOnly.setsStatus && SlackSyncMode.presenceOnly.setsPresence, "presenceOnly never sets status")
         check(SlackSyncMode.statusOnly.setsStatus && !SlackSyncMode.statusOnly.setsPresence, "statusOnly never sets presence")
-        check(Config().slackMode == .statusAndPresence, "default slackMode == statusAndPresence")
+        check(Config().slackMode == .presenceOnly, "default slackMode == presenceOnly")
         check(SlackSyncMode.cleanup(from: .statusAndPresence, to: nil) == .statusAndPresence, "turning off undoes both")
         check(SlackSyncMode.cleanup(from: .statusAndPresence, to: .presenceOnly) == .statusOnly, "→ presenceOnly clears status")
         check(SlackSyncMode.cleanup(from: .statusAndPresence, to: .statusOnly) == .presenceOnly, "→ statusOnly resets presence")

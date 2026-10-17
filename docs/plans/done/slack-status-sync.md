@@ -19,20 +19,21 @@ stage.*
   token is entered. Turning it off (or clearing/replacing the token) clears our
   status and sets presence back to `auto` with the old token. User-facing setup
   (creating the Slack app and token) lives in the README → *Slack sync*.
-- **Mode:** `Config.slackMode` (segmented picker, default `statusAndPresence`):
+- **Mode:** `Config.slackMode` (segmented picker, default `presenceOnly` — the least
+  intrusive option, and the only one needing just a single scope, `users:write`):
 
   | Mode | Writes | Token scopes |
   |---|---|---|
-  | `statusAndPresence` | status + presence | `users.profile:read`, `users.profile:write`, `users:write` |
-  | `statusOnly` | status; presence never touched (no sticky `away`) | `users.profile:read`, `users.profile:write` |
   | `presenceOnly` | presence only; still follows Bizneo even under a manual status | `users:write` |
+  | `statusOnly` | status; presence never touched (no sticky `away`) | `users.profile:read`, `users.profile:write` |
+  | `statusAndPresence` | status + presence | `users.profile:read`, `users.profile:write`, `users:write` |
 
   In `statusAndPresence` a manual status blocks presence too (you're on vacation,
   don't flip the dot). Narrowing the mode undoes what the old one wrote and the new
   one won't — `SlackSyncMode.cleanup(from:to:)`: e.g. → `presenceOnly` clears our
   status, → `statusOnly` sets presence back to `auto`. Widening needs no cleanup.
-- **Token:** a user token (`xoxp-…`) with `users.profile:read`, `users.profile:write`,
-  `users:write`. Stored in the login Keychain (`SlackToken`, service
+- **Token:** a user token (`xoxp-…`) with the scopes for the chosen mode (table
+  above). Stored in the login Keychain (`SlackToken`, service
   `BizneoCompanion.Slack`), never in `config.json`. The ad-hoc-signed app may
   re-prompt for Keychain access after a rebuild.
 - **Rolling expiry:** working/break statuses expire after 2 × `refreshSeconds` and are

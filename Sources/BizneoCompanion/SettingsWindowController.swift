@@ -245,9 +245,9 @@ private struct SettingsView: View {
             Toggle("Sync to Slack", isOn: $cfg.slackSync)
                 .disabled(trimmedSlackToken.isEmpty)
             Picker("Update", selection: $cfg.slackMode) {
-                Text("Status & presence").tag(SlackSyncMode.statusAndPresence)
-                Text("Status").tag(SlackSyncMode.statusOnly)
                 Text("Presence").tag(SlackSyncMode.presenceOnly)
+                Text("Status").tag(SlackSyncMode.statusOnly)
+                Text("Status & presence").tag(SlackSyncMode.statusAndPresence)
             }
             .pickerStyle(.segmented)
             .disabled(!cfg.slackSync)

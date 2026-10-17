@@ -218,9 +218,9 @@ Pick what it updates with **Update**:
 
 | Mode | Updates | Token scopes needed |
 |---|---|---|
-| Status & presence | both | `users.profile:read`, `users.profile:write`, `users:write` |
+| Presence *(default)* | presence only, even while you have a manual status | `users:write` |
 | Status | status only, presence never touched | `users.profile:read`, `users.profile:write` |
-| Presence | presence only, even while you have a manual status | `users:write` |
+| Status & presence | both | `users.profile:read`, `users.profile:write`, `users:write` |
 
 A status you set yourself (🌴 Vacation, 📅 In a meeting) is never replaced. Statuses
 expire after two refresh intervals and are renewed while you work, so quitting the
@@ -232,7 +232,8 @@ sets presence back to auto.
 1. Go to <https://api.slack.com/apps> → **Create New App** → **From scratch**; name it
    (e.g. "Bizneo Companion") and pick your workspace.
 2. **OAuth & Permissions** → **Scopes** → under **User Token Scopes** (not *Bot
-   Token Scopes*) add the scopes for your mode from the table above.
+   Token Scopes*) add the scopes for your mode from the table above — for the
+   default (Presence) that's just `users:write`.
 3. Top of **OAuth & Permissions** → **Install to Workspace** → **Allow**. If you only
    see *Request to Install*, a workspace admin has to approve it first.
 4. Copy the **User OAuth Token** (`xoxp-…`). Not the bot token (`xoxb-…`): it can't

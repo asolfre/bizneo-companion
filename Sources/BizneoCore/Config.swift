@@ -92,7 +92,7 @@ public struct Config: Codable {
                 reminderIntervalMinutes: Int = 15,
                 manualCookie: String? = nil,
                 slackSync: Bool = false,
-                slackMode: SlackSyncMode = .statusAndPresence) {
+                slackMode: SlackSyncMode = .presenceOnly) {
         self.tenant = tenant
         self.userId = userId
         self.chromeProfile = chromeProfile
