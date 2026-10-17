@@ -77,6 +77,8 @@ private struct SettingsView: View {
     @State private var openAtLogin: Bool
     @State private var loginNeedsApproval: Bool
     @State private var loginError: String?
+    /// Kept out of `cfg`: written to the Keychain on save, never to config.json.
+    @State private var slackToken: String
 
     private let projects: [ChronoProject]
     private let onSave: (Config) -> Void
@@ -92,6 +94,7 @@ private struct SettingsView: View {
         let login = Self.loginState()
         _openAtLogin = State(initialValue: login.on)
         _loginNeedsApproval = State(initialValue: login.needsApproval)
+        _slackToken = State(initialValue: SlackToken.read() ?? "")
         self.projects = projects
         self.onSave = onSave
         self.onCancel = onCancel
@@ -104,6 +107,7 @@ private struct SettingsView: View {
                 displaySection
                 clockSection
                 remindersSection
+                slackSection
                 timeOffSection
                 generalSection
                 advancedSection
@@ -236,6 +240,28 @@ private struct SettingsView: View {
         .task { notificationsDenied = await ReminderNotifier.isDenied() }
     }
 
+    private var slackSection: some View {
+        Section("Slack") {
+            Toggle("Sync to Slack", isOn: $cfg.slackSync)
+                .disabled(trimmedSlackToken.isEmpty)
+            Picker("Update", selection: $cfg.slackMode) {
+                Text("Presence").tag(SlackSyncMode.presenceOnly)
+                Text("Status").tag(SlackSyncMode.statusOnly)
+                Text("Status & presence").tag(SlackSyncMode.statusAndPresence)
+            }
+            .pickerStyle(.segmented)
+            .disabled(!cfg.slackSync)
+            HStack {
+                SecureField("User token", text: $slackToken, prompt: Text("xoxp-…"))
+                Button("Clear") { slackToken = ""; cfg.slackSync = false }
+                    .disabled(slackToken.isEmpty)
+            }
+            Text("Status: working → 💻, on a break → ☕, checked out → cleared; a status you set yourself is never replaced. Presence: working → auto, otherwise away. Token scopes: users.profile:read + users.profile:write for status, users:write for presence. Stored in the Keychain.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
     private var timeOffSection: some View {
         Section("Time off") {
             TextField("Day-off schedules", text: $dayOffText, prompt: Text("Fridom, Fridom (7 hours)"))
@@ -324,8 +350,12 @@ private struct SettingsView: View {
         out.userId = out.userId.trimmingCharacters(in: .whitespaces)
         out.dayOffScheduleNames = commaList(dayOffText)
         out.reminderWindows = commaList(remindersText)
+        SlackToken.save(trimmedSlackToken)
+        if trimmedSlackToken.isEmpty { out.slackSync = false }
         onSave(out)
     }
+
+    private var trimmedSlackToken: String { slackToken.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     /// `.requiresApproval` means registered but blocked by the user in System
     /// Settings (SMAppService.h). It counts as "on": treating it as off made the

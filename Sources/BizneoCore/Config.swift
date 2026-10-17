@@ -65,6 +65,11 @@ public struct Config: Codable {
     /// Optional manual cookie override: `_hcmex_key=...; device_id=...`.
     /// When set, Chrome/Keychain is bypassed entirely.
     public var manualCookie: String?
+    /// Mirror the clock state into Slack's status and presence. The token itself
+    /// lives in the Keychain (`SlackToken`), never here.
+    public var slackSync: Bool
+    /// What the sync writes: status and presence, status only, or presence only.
+    public var slackMode: SlackSyncMode
 
     public init(tenant: String = "",
                 userId: String = "",
@@ -85,7 +90,9 @@ public struct Config: Codable {
                 remindersEnabled: Bool = true,
                 reminderWindows: [String] = ["08:00-10:00", "14:00-15:30"],
                 reminderIntervalMinutes: Int = 15,
-                manualCookie: String? = nil) {
+                manualCookie: String? = nil,
+                slackSync: Bool = false,
+                slackMode: SlackSyncMode = .presenceOnly) {
         self.tenant = tenant
         self.userId = userId
         self.chromeProfile = chromeProfile
@@ -106,6 +113,8 @@ public struct Config: Codable {
         self.reminderWindows = reminderWindows
         self.reminderIntervalMinutes = reminderIntervalMinutes
         self.manualCookie = manualCookie
+        self.slackSync = slackSync
+        self.slackMode = slackMode
     }
 
     /// Tolerant decoder: any missing key falls back to its default (keeps old
@@ -133,6 +142,8 @@ public struct Config: Codable {
         reminderWindows = try c.decodeIfPresent([String].self, forKey: .reminderWindows) ?? d.reminderWindows
         reminderIntervalMinutes = try c.decodeIfPresent(Int.self, forKey: .reminderIntervalMinutes) ?? d.reminderIntervalMinutes
         manualCookie = try c.decodeIfPresent(String.self, forKey: .manualCookie) ?? d.manualCookie
+        slackSync = try c.decodeIfPresent(Bool.self, forKey: .slackSync) ?? d.slackSync
+        slackMode = try c.decodeIfPresent(SlackSyncMode.self, forKey: .slackMode) ?? d.slackMode
     }
 
     public var host: String { "\(tenant).bizneohr.com" }

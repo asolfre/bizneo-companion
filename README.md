@@ -70,6 +70,7 @@ Bizneo Companion puts your running time balance right in the menu bar and lets y
 | 🔄 **Auto‑refresh** | Every 10 min (configurable) + on demand |
 | ⚙️ **Settings window** | Every option in a real form — no JSON editing, applies without a restart |
 | 🔔 **Check‑in reminders** | A notification with a **Check in** (or **Resume**) button when you haven't started, checked out early, or are still on a break, inside time windows you choose. **Not today** silences it until tomorrow. |
+| 💬 **Slack sync** *(optional)* | Mirrors working / on a break / off into your Slack status and/or presence — never overwrites a status you set yourself. See [Slack sync](#slack-sync). |
 | 🪶 **Tiny & native** | Swift menu‑bar agent, no Dock icon, no Electron |
 
 ## Quick start
@@ -202,6 +203,47 @@ Highlights:
 }
 ```
 </details>
+
+### Slack sync
+
+Optional, off by default. Settings → **Slack** mirrors your clock into Slack:
+
+| Bizneo | Status | Presence |
+|---|---|---|
+| Working | 💻 Working | auto (green when active) |
+| On a break | ☕ On a break | away |
+| Checked out / not in / day off | cleared | away |
+
+Pick what it updates with **Update**:
+
+| Mode | Updates | Token scopes needed |
+|---|---|---|
+| Presence *(default)* | presence only, even while you have a manual status | `users:write` |
+| Status | status only, presence never touched | `users.profile:read`, `users.profile:write` |
+| Status & presence | both | `users.profile:read`, `users.profile:write`, `users:write` |
+
+A status you set yourself (🌴 Vacation, 📅 In a meeting) is never replaced. Statuses
+expire after two refresh intervals and are renewed while you work, so quitting the
+app or sleeping the Mac lets Slack clear them. Switching the sync off clears ours and
+sets presence back to auto.
+
+**Getting a token** (about 5 minutes):
+
+1. Go to <https://api.slack.com/apps> → **Create New App** → **From scratch**; name it
+   (e.g. "Bizneo Companion") and pick your workspace.
+2. **OAuth & Permissions** → **Scopes** → under **User Token Scopes** (not *Bot
+   Token Scopes*) add the scopes for your mode from the table above — for the
+   default (Presence) that's just `users:write`.
+3. Top of **OAuth & Permissions** → **Install to Workspace** → **Allow**. If you only
+   see *Request to Install*, a workspace admin has to approve it first.
+4. Copy the **User OAuth Token** (`xoxp-…`). Not the bot token (`xoxb-…`): it can't
+   change your own status.
+5. Settings → **Slack**: paste it, switch on **Sync to Slack**, pick a mode, **Save**.
+
+The token goes to the macOS Keychain, never `config.json`. The first read shows a
+Keychain prompt: click **Always Allow** (a rebuilt app may ask again). Adding scopes
+later means reinstalling the Slack app; if it shows a new token, paste it again. To
+revoke: **Clear** + **Save** in Settings, or remove the app in Slack.
 
 ## FAQ
 
