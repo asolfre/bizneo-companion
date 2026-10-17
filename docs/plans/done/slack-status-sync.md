@@ -66,6 +66,20 @@ stage.*
    leave "Working" behind after a quit.
 5. Dedup must record only confirmed pushes, or a failed one is never retried.
 
+## Follow-ups (after the first PR)
+
+Shipped in a second PR, once presence-only became the default:
+
+1. **Quit resets presence.** Statuses expire on their own, presence doesn't, so a
+   quit on a break or after checkout left a sticky `away`. `AppDelegate`'s
+   `applicationShouldTerminate` (quit, logout, shutdown) now sends `auto` when the
+   last confirmed push was `away`, waiting at most 3 s. A crash or force-quit still
+   leaves `away` until the next launch pushes — recorded as a `ponytail:` ceiling.
+2. **README:** the "No password, no API token" line now notes that Slack sync is the
+   one optional exception.
+3. **Fewer Keychain writes:** Settings only writes the token when it changed. With
+   the ad-hoc-signed app, every Keychain access can re-prompt after a rebuild.
+
 ## Verification
 
 - `--selftest`: all seven state mappings, presence values, the ownership guard, the
@@ -85,3 +99,4 @@ stage.*
   | `statusAndPresence` → `presenceOnly` → our status cleared | not yet tested |
   | Quit while working → status expires | not yet tested |
   | Toggle off → cleared + `auto` | not yet tested |
+  | Quit while away → presence back to `auto` | not yet tested |
