@@ -136,7 +136,7 @@ What ships:
   the reset fails, the hint shows the command with **Copy**.
 - README (Quick start, Settings, FAQ) and `AGENTS.md` (testing builds) explain it.
 - *Not here:* a stable signing identity, which should let the permission survive
-  updates — tracked as its own issue.
+  updates — [#22](https://github.com/asolfre/bizneo-companion/issues/22).
 
 ## Review findings folded in (second round)
 
@@ -165,7 +165,7 @@ A review of the macOS-block plan, before code, changed it:
 | Picking up a new grant | The hint says close Settings and open it again. *Rejected:* a Check again button; automatic retries. |
 | Profile list loading | Detached, after the window is up (text field until it arrives). |
 | Menu when blocked | Short line + **Open Privacy & Security…**. *Rejected:* an action opening Settings. |
-| Signing | Separate issue, fixed later. |
+| Signing | Separate issue, fixed later: [#22](https://github.com/asolfre/bizneo-companion/issues/22). |
 
 ## Verification
 
