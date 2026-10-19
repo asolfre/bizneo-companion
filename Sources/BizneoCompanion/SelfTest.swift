@@ -426,6 +426,41 @@ enum SelfTest {
         check(AppInfo.display(version: "0.3.0", build: "d8c9728.dirty") == "0.3.0+d8c9728.dirty", "uncommitted changes show .dirty")
         check(AppInfo.display(version: "0.3.0", build: nil) == "0.3.0+dev", "unbundled (swift run) shows +dev")
 
+        // Settings connection helpers. See docs/plans/done/settings-connection-helpers.md.
+        print("chrome profiles:")
+        let chromeDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("bc_selftest_chrome_\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: chromeDir) }
+        func touchJar(_ dir: String) {
+            let d = chromeDir.appendingPathComponent(dir)
+            try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
+            FileManager.default.createFile(atPath: d.appendingPathComponent("Cookies").path, contents: Data())
+        }
+        func writeLocalState(_ s: String) {
+            try? FileManager.default.createDirectory(at: chromeDir, withIntermediateDirectories: true)
+            try? s.write(to: chromeDir.appendingPathComponent("Local State"), atomically: true, encoding: .utf8)
+        }
+        ["Default", "Profile 2", "System Profile"].forEach(touchJar)   // "Profile 9" has no jar
+        writeLocalState(#"{"profile":{"info_cache":{"#
+            + #""Default":{"name":"Work","user_name":"a@example.test"},"#
+            + #""Profile 2":{"name":"Home","user_name":""},"#
+            + #""Profile 9":{"name":"Gone"}}}}"#)
+        let found = ChromeCookies.profiles(chromeDir: chromeDir)
+        check(found.map(\.dir) == ["Profile 2", "Default"],
+              "lists info_cache profiles with a cookie jar, by name; skips System Profile", found.map(\.dir))
+        check(found.map(\.label) == ["Home (Profile 2)", "Work — a@example.test (Default)"],
+              "label = name — email (dir), no email when signed out", found.map(\.label))
+        writeLocalState("not json")
+        check(ChromeCookies.profiles(chromeDir: chromeDir).isEmpty, "malformed Local State → none found")
+        check(ChromeCookies.profiles(chromeDir: chromeDir.appendingPathComponent("missing")).isEmpty,
+              "no Chrome directory → none found")
+
+        print("connection check:")
+        check((try? BizneoClient.connectionCheck(hub: hub, logs: logs)) == .working,
+              "hub_chrono + my_logs fixtures pass", (try? BizneoClient.connectionCheck(hub: hub, logs: logs)) as Any)
+        check((try? BizneoClient.connectionCheck(hub: "", logs: logs)) == nil, "unreadable clock fails")
+        check((try? BizneoClient.connectionCheck(hub: hub, logs: "")) == nil, "unreadable month fails")
+
         print(failures == 0 ? "\nALL PASSED ✅" : "\n\(failures) FAILED ❌")
         return failures == 0 ? 0 : 1
     }

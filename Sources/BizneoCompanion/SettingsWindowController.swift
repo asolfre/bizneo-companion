@@ -77,6 +77,13 @@ private struct SettingsView: View {
     @State private var openAtLogin: Bool
     @State private var loginNeedsApproval: Bool
     @State private var loginError: String?
+    /// Read once as the window opens: one small JSON file, no Keychain.
+    private let chromeProfiles = ChromeCookies.profiles()
+    /// Profiles holding a Bizneo cookie for the typed tenant; filled in off the main thread.
+    @State private var sessionProfiles: Set<String> = []
+    @State private var testing = false
+    /// `key` = the values tested (`connectionKey`), so the result hides once they change.
+    @State private var testResult: (key: [String], ok: Bool, text: String)?
     /// Kept out of `cfg`: written to the Keychain on save, never to config.json.
     @State private var slackToken: String
     /// What the Keychain held when the window opened: Save only writes on a change,
@@ -142,8 +149,59 @@ private struct SettingsView: View {
         Section("Account") {
             TextField("Tenant", text: $cfg.tenant, prompt: Text("your-company"))
             TextField("User ID", text: $cfg.userId, prompt: Text("123456"))
+            profileField
+            HStack {
+                Button("Test connection", action: testConnection)
+                    .disabled(testing || cfg.tenant.trimmingCharacters(in: .whitespaces).isEmpty
+                              || cfg.userId.trimmingCharacters(in: .whitespaces).isEmpty)
+                if testing { ProgressView().controlSize(.small) }
+            }
+            // Shown only for the values it tested, so a ✓ never sits next to edits.
+            if let r = testResult, r.key == connectionKey {
+                Text(r.text).font(.caption).foregroundStyle(r.ok ? .green : .red)
+            }
+            Text("Checks the values above against Bizneo before you save. The first check may ask for Keychain access to “Chrome Safe Storage”: click Always Allow.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        // Restarts on every tenant edit, so the 0.5 s pause doubles as a debounce.
+        .task(id: cfg.tenant) {
+            sessionProfiles = []
+            let tenant = cfg.tenant.trimmingCharacters(in: .whitespaces)
+            guard !tenant.isEmpty, !chromeProfiles.isEmpty else { return }
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            guard !Task.isCancelled else { return }
+            let host = Config(tenant: tenant).host
+            let dirs = chromeProfiles.map(\.dir)
+            let found = await Task.detached {
+                Set(dirs.filter { ChromeCookies.hasSessionCookie(profile: $0, host: host) })
+            }.value
+            guard !Task.isCancelled else { return }
+            sessionProfiles = found
+        }
+    }
+
+    /// A picker over Chrome's profiles, the plain field when none are found.
+    /// Same rule as `projectField`: a configured profile the list doesn't contain
+    /// keeps its own row, so a working value is never hidden or overwritten.
+    @ViewBuilder
+    private var profileField: some View {
+        if chromeProfiles.isEmpty {
             TextField("Chrome profile", text: $cfg.chromeProfile, prompt: Text("Default"))
             Text("The profile directory name, e.g. `Default` or `Profile 1` — find it at chrome://version under Profile Path.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } else {
+            Picker("Chrome profile", selection: $cfg.chromeProfile) {
+                if !chromeProfiles.contains(where: { $0.dir == cfg.chromeProfile }) {
+                    Text(cfg.chromeProfile.isEmpty ? "Not set" : "\(cfg.chromeProfile) (not found in Chrome)")
+                        .tag(cfg.chromeProfile)
+                }
+                ForEach(chromeProfiles, id: \.dir) { p in
+                    Text(sessionProfiles.contains(p.dir) ? "\(p.label) · Bizneo session" : p.label).tag(p.dir)
+                }
+            }
+            Text("“Bizneo session” marks profiles holding a login cookie for this tenant. It may have expired: Test connection checks it.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -348,6 +406,32 @@ private struct SettingsView: View {
 
     // MARK: Actions
 
+    /// Everything the connection test depends on.
+    private var connectionKey: [String] {
+        [cfg.tenant, cfg.userId, cfg.chromeProfile, cfg.manualCookie ?? ""]
+    }
+
+    /// Tests the form's unsaved values, not the running config.
+    private func testConnection() {
+        var probe = cfg
+        probe.tenant = probe.tenant.trimmingCharacters(in: .whitespaces)
+        probe.userId = probe.userId.trimmingCharacters(in: .whitespaces)
+        let key = connectionKey
+        // A manual cookie bypasses Chrome, so a pass says nothing about the profile.
+        let note = (probe.manualCookie ?? "").isEmpty ? "" : " (manual cookie; Chrome profile not used)"
+        testing = true
+        Task { @MainActor in
+            defer { testing = false }
+            do {
+                let status = try await BizneoClient(config: probe).testConnection()
+                testResult = (key, true, "✓ Connected · \(label(status))\(note)")
+            } catch {
+                let message = (error as? BizneoError)?.errorDescription ?? error.localizedDescription
+                testResult = (key, false, message + note)
+            }
+        }
+    }
+
     private func save() {
         var out = cfg
         out.tenant = out.tenant.trimmingCharacters(in: .whitespaces)
@@ -411,6 +495,15 @@ private struct SettingsView: View {
         case .week:  return "This week's backlog"
         case .month: return "This month's backlog"
         case .year:  return "This year's backlog"
+        }
+    }
+
+    private func label(_ s: ChronoStatus) -> String {
+        switch s {
+        case .working: return "clock running"
+        case .paused:  return "on a break"
+        case .stopped: return "clock stopped"
+        case .unknown: return "clock state unknown"
         }
     }
 

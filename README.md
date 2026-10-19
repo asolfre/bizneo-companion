@@ -110,7 +110,10 @@ https://<your-company>.bizneohr.com/time-attendance/my-logs/<your-user-id>
 - `tenant` = `<your-company>`
 - `userId` = `<your-user-id>` (the number)
 - `chromeProfile` = the Chrome profile you're logged in with (e.g. `Default`,
-  `Profile 1`). Find it at `chrome://version` → *Profile Path*.
+  `Profile 1`). Settings lists your profiles and marks the one with a Bizneo login;
+  otherwise find it at `chrome://version` → *Profile Path*.
+
+Then click **Test connection** in Settings → Account to check all three before saving.
 </details>
 
 ## Using it day to day
@@ -155,6 +158,16 @@ reliably, keep `BizneoCompanion.app` in `/Applications` (`SMAppService` register
 app at whatever path it's running from). If macOS has blocked it, the toggle offers
 **Approve in System Settings…**. Changing the default project also replaces the one
 last picked from **Check in ▸**.
+
+The **Account** section helps you get connected. **Chrome profile** lists Chrome's
+profiles by name, signed-in account and folder (`Work — you@company.com (Profile 3)`),
+and marks the ones holding a Bizneo login for the tenant you typed as
+**Bizneo session**. A marked profile's login may still have expired, so **Test
+connection** checks the values in the form, before you save, with the same two
+requests a refresh starts with. It reports *Connected* with your clock state, or the
+exact problem: no cookie for that tenant in that profile, not logged in, or a User ID
+whose timesheet can't be read. With a manual cookie set it says so, since Chrome
+isn't used then. The first test may show the "Chrome Safe Storage" Keychain prompt.
 
 Settings writes to `~/Library/Application Support/BizneoCompanion/config.json`, still
 editable by hand if you prefer (Settings → *Advanced* → **Open config file…**).

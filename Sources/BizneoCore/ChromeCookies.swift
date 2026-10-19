@@ -3,6 +3,24 @@ import Security
 import SQLite3
 import CommonCrypto
 
+/// A Chrome profile as Chrome's own menu lists it.
+public struct ChromeProfile: Equatable {
+    /// The directory name, e.g. `Profile 3`: what `Config.chromeProfile` stores.
+    public let dir: String
+    public let name: String
+    /// The signed-in Google account; nil when the profile isn't signed in.
+    public let email: String?
+
+    public init(dir: String, name: String, email: String?) {
+        self.dir = dir; self.name = name; self.email = email
+    }
+
+    /// `Work — you@company.com (Profile 3)`, or `Work (Profile 3)` without an account.
+    public var label: String {
+        "\(name)\(email.map { " — \($0)" } ?? "") (\(dir))"
+    }
+}
+
 /// Reads and decrypts Chrome's `_hcmex_key` (and `device_id`) session cookies on macOS.
 ///
 /// macOS Chrome cookie scheme (`v10`):
@@ -51,11 +69,43 @@ public enum ChromeCookies {
         return data
     }
 
+    // MARK: - Profiles
+
+    public static var defaultChromeDir: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/Google/Chrome")
+    }
+
+    /// Chrome's own profile list (`Local State` → `profile.info_cache`), limited to
+    /// profiles with a cookie jar. Not each profile's `Preferences`: its `profile.name`
+    /// can differ from Chrome's menu, and System/Guest profiles have one too.
+    /// The layout is undocumented, so any failure is "none found", never a throw.
+    public static func profiles(chromeDir: URL = defaultChromeDir) -> [ChromeProfile] {
+        guard let data = try? Data(contentsOf: chromeDir.appendingPathComponent("Local State")),
+              let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let cache = (root["profile"] as? [String: Any])?["info_cache"] as? [String: Any]
+        else { return [] }
+        func nonEmpty(_ v: Any?) -> String? { (v as? String).flatMap { $0.isEmpty ? nil : $0 } }
+        return cache.compactMap { dir, value -> ChromeProfile? in
+            let jar = chromeDir.appendingPathComponent(dir).appendingPathComponent("Cookies")
+            guard FileManager.default.fileExists(atPath: jar.path) else { return nil }
+            let info = value as? [String: Any] ?? [:]
+            return ChromeProfile(dir: dir, name: nonEmpty(info["name"]) ?? dir, email: nonEmpty(info["user_name"]))
+        }
+        .sorted { ($0.name, $0.dir) < ($1.name, $1.dir) }
+    }
+
+    /// Whether `profile` holds a Bizneo session cookie for `host`. The host is stored
+    /// unencrypted, so this never touches the Keychain — but it copies the cookie DB,
+    /// so keep it off the main thread. A cookie isn't proof of a live session.
+    public static func hasSessionCookie(profile: String, host: String) -> Bool {
+        (try? readEncryptedCookies(profile: profile, host: host, names: ["_hcmex_key"]))?.isEmpty == false
+    }
+
     // MARK: - SQLite
 
     static func chromeCookiesPath(profile: String) -> URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/Google/Chrome/\(profile)/Cookies")
+        defaultChromeDir.appendingPathComponent(profile).appendingPathComponent("Cookies")
     }
 
     static func readEncryptedCookies(profile: String, host: String, names: [String]) throws -> [String: Data] {
