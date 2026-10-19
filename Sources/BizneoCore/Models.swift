@@ -128,6 +128,9 @@ public struct Snapshot {
 public enum BizneoError: Error, LocalizedError {
     case notAuthenticated
     case cookieUnavailable(String)
+    /// Chrome's data is there but macOS refuses to let this app read it (privacy
+    /// protection on other apps' data; seen on macOS 27).
+    case chromeAccessBlocked
     case http(Int, String)
     case network(String)
     case parse(String)
@@ -138,6 +141,9 @@ public enum BizneoError: Error, LocalizedError {
         switch self {
         case .notAuthenticated: return "Not logged in to Bizneo (open it in Chrome)"
         case .cookieUnavailable(let m): return "Couldn't read Chrome cookie: \(m)"
+        // Short on purpose: it's a menu line and a notification body. The fix
+        // steps live in Settings and the README.
+        case .chromeAccessBlocked: return "macOS is blocking access to Chrome's data"
         case .http(let c, _): return "Bizneo returned HTTP \(c)"
         case .network(let m): return "Network error: \(m)"
         case .parse(let m): return "Couldn't read timesheet: \(m)"

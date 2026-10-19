@@ -11,6 +11,7 @@ the live cookie path, and both are pure convenience over fields that already wor
 - [x] `BizneoClient.testConnection()` with a pure `connectionCheck`
 - [x] Account section: profile picker, session markers, Test connection
 - [x] Self-test, README Settings paragraph
+- [x] macOS privacy block: detection, menu action, Settings hint with Reset permission (§3)
 - [ ] Manual checks recorded below; plan moved to `done/`
 
 ## Context
@@ -59,17 +60,21 @@ things:
 
 - `ChromeCookies.profiles(chromeDir:) -> [ChromeProfile]` (`dir`, `name`, `email`):
   reads `Local State` → `profile.info_cache`, keeps entries whose directory has a
-  `Cookies` file, sorted by name. Any read or parse failure → `[]`, never a throw:
-  Chrome's layout is undocumented and has changed before.
-- `ChromeCookies.hasSessionCookie(profile:host:) -> Bool`: one-line wrapper around
-  `readEncryptedCookies` for `_hcmex_key` only.
+  `Cookies` file, sorted like Finder (`localizedStandardCompare`), then by
+  directory so equal names stay stable. A missing or unparsable file → `[]`:
+  Chrome's layout is undocumented and has changed before. It throws only when the
+  file exists but can't be read (§3).
+- `ChromeCookies.hasSessionCookie(profile:host:)`: wraps `readEncryptedCookies`
+  for `_hcmex_key` only; "no" on any failure except the privacy block (§3).
 - Settings, same pattern as the default-project picker:
   - list non-empty → `Picker`; a configured directory that wasn't detected keeps
     its own row, so a working value is never hidden or overwritten;
   - list empty → the existing `TextField`.
-- Markers come from `.task(id: cfg.tenant)` after a 0.5 s pause: editing the
-  tenant cancels and restarts it, so first-run setup works (type the tenant, then
-  pick the profile). The window never waits for it.
+- The list and the markers load in `.task(id: cfg.tenant)`, detached from the main
+  thread: `Local State` sits behind the macOS privacy check (§3), and the window
+  must never wait on its prompt. Until the list arrives the text field shows.
+  Markers follow a 0.5 s pause: editing the tenant cancels and restarts it, so
+  first-run setup works (type the tenant, then pick the profile).
 
 ## 2. Test connection
 
@@ -95,14 +100,96 @@ things:
   button and in the README's Settings paragraph. Hits the live session, so it stays
   out of `--selftest`.
 
+## 3. macOS privacy block on Chrome's data
+
+Found during manual testing, after the test Mac was upgraded from macOS 14.8.9 to
+27.0.1 (the version that introduced it is unknown; "seen on 27"):
+
+- Reading Chrome's data (`Local State`, `Profile N/Cookies`) now needs a per-app
+  permission, listed under Privacy & Security → **Files & Folders** →
+  BizneoCompanion → Google Chrome. Without it, `stat` still works but opening the
+  files fails with "Operation not permitted" — so the old code reported
+  "Chrome cookie DB not found" for a file that was there.
+- The permission belongs to **one build**. The app is ad-hoc signed, so every build
+  is a different app to macOS. With the grant held by the `/Applications` build, a
+  test build stayed blocked, and switching its toggle on didn't stick — from the
+  Google Drive repo folder and from `~/Applications` alike, with only one copy
+  running. Only `tccutil reset All com.asolfre.bizneocompanion`, reopening the app
+  and clicking **Allow** on the prompt fixed it. An in-place update in
+  `/Applications` is expected to behave the same; not yet observed.
+
+What ships:
+
+- `BizneoError.chromeAccessBlocked` ("macOS is blocking access to Chrome's data"):
+  thrown when a Chrome file **exists but can't be read**, whatever the error code.
+  That way the self-test's unreadable (`000`) file takes the same path as the real
+  block (`EACCES` vs `EPERM`). Kept short: it's a menu line and the body of the
+  "Can't check your Bizneo status" notification. It names no app, because `--probe`
+  run from Terminal reads Chrome as Terminal.
+- Menu: that error line gets **Open Privacy & Security…** (Files & Folders), checked
+  before the `"cookie"` match that adds **Open Bizneo to log in** — logging in again
+  doesn't lift a macOS block.
+- Settings → Account: when any read of Chrome's data is blocked (the profile list,
+  a marker, or Test connection), a hint lists the steps: allow Google Chrome; if the
+  toggle switches itself off, **Reset permission** (runs `/usr/bin/tccutil reset All
+  <bundle id>`), then quit, reopen and Allow; close Settings and open it again. If
+  the reset fails, the hint shows the command with **Copy**.
+- README (Quick start, Settings, FAQ) and `AGENTS.md` (testing builds) explain it.
+- *Not here:* a stable signing identity, which should let the permission survive
+  updates — tracked as its own issue.
+
+## Review findings folded in (second round)
+
+A review of the macOS-block plan, before code, changed it:
+
+1. The hint first said only "allow it, then reopen Settings" — the exact step that
+   failed in testing once the permission belonged to another build. Added Reset
+   permission.
+2. The new error would have contained "cookie", so the menu would have offered
+   **Open Bizneo to log in** for a permission problem; and a long message (with the
+   `tccutil` command) would have been a very wide menu line and a cut-off
+   notification. Short message, dedicated menu action.
+3. "Blocked" is "exists but unreadable", not a specific errno, so the self-test's
+   `000` file covers the same branch as the real `EPERM`.
+4. Choosing Settings… while the window is open only brings it forward
+   (`SettingsWindowController.show`), so the hint says *close* and reopen.
+5. `Local State` was read on the main thread while the window was built; it's
+   behind the privacy check now, so it loads detached.
+6. Self-test sort names are ASCII only (`localizedStandardCompare` is locale-aware).
+
+## Decisions (second round)
+
+| Question | Decision |
+|---|---|
+| Recovery when the toggle won't stick | **Reset permission** button running `tccutil`; the command with Copy if that fails. *Rejected:* command only; README only. |
+| Picking up a new grant | The hint says close Settings and open it again. *Rejected:* a Check again button; automatic retries. |
+| Profile list loading | Detached, after the window is up (text field until it arrives). |
+| Menu when blocked | Short line + **Open Privacy & Security…**. *Rejected:* an action opening Settings. |
+| Signing | Separate issue, fixed later. |
+
 ## Verification
 
-- `--selftest` (offline): `profiles(chromeDir:)` against a temporary directory — two
-  profiles, one without a `Cookies` file (excluded); a `System Profile` directory
-  not in `info_cache` (excluded); malformed `Local State` → `[]`.
+- `--selftest` (offline), against a temporary directory: `profiles(chromeDir:)` lists
+  only `info_cache` profiles with a `Cookies` file (a `System Profile` directory and
+  a profile without a jar are excluded), in Finder order with a lowercase name and a
+  tie on name; malformed or missing `Local State` → `[]`; an unreadable (`000`)
+  `Local State` or cookie jar → `chromeAccessBlocked`, not "not found";
+  `hasSessionCookie` is "no" for a jar without the cookie and a missing profile.
   `connectionCheck` passes on the `hub_chrono.html` + `my_logs.html` fixtures and
   fails when either is empty.
-- Manual (to record here): picker names match Chrome's profile menu; only the
-  profiles with a Bizneo session are marked; correct values → ✓; wrong tenant →
-  "no cookies" error; wrong user ID → error; manual cookie → the result mentions
-  it; the window still opens instantly.
+- Manual, build `0.4.0+fe0aef5` (before §3):
+
+  | Check | Result |
+  |---|---|
+  | Picker names match Chrome's profile menu; configured profile selected | ✅ |
+  | Only the profiles with a Bizneo session are marked | ✅ after reopening Settings; ❌ on the first open, while access was still blocked (no hint then — fixed by §3) |
+  | Correct values → ✓ | ✅ "Connected · clock stopped" |
+  | Sort order | ❌ byte order put "OLD …" before lowercase names — fixed (Finder order) |
+  | Blocked access (macOS 27) | ❌ "Chrome cookie DB not found", text field, no markers — fixed by §3 |
+
+- Manual, after §3 (to record here): wrong tenant → "no cookies" error; wrong user
+  ID → error; manual cookie → the result mentions it; the window opens instantly;
+  with the grant held by another build: the menu shows the short line and **Open
+  Privacy & Security…** (not the log-in action), Settings shows the hint, **Reset
+  permission** works (or the Copy fallback shows), and after Allow + reopening the
+  picker and markers appear.

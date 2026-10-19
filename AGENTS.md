@@ -21,6 +21,14 @@ HTML endpoints**, authenticated by reusing the Chrome session cookie.
   `BizneoCompanion.app` at repo root (`LSUIElement` agent, no Dock icon).
 - Repo lives under Google Drive; pass `BUILD_PATH=/tmp/bc` to keep `.build` off the
   synced folder (e.g. `BUILD_PATH=/tmp/bc swift build`).
+- **Testing a build on recent macOS (seen on 27):** reading Chrome's data needs a
+  Files & Folders permission, and macOS ties it to one build (the app is ad-hoc
+  signed). A test build won't inherit the installed app's grant, and toggling it on
+  in System Settings doesn't stick. Quit every copy, run
+  `tccutil reset All com.asolfre.bizneocompanion`, open the build to test and click
+  **Allow**; after testing, do the same for `/Applications/BizneoCompanion.app`.
+  Quit the `/Applications` copy while testing anyway: both copies would refresh,
+  remind and sync Slack.
 - macOS-only: links AppKit, Security, SQLite3, CommonCrypto. Won't build on Linux.
 
 ## Git & GitHub for this repo

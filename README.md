@@ -98,6 +98,10 @@ development build can't be mistaken for a release.
 The first time it reads your cookie — and again after you change the Chrome profile
 — macOS shows a Keychain prompt ("Chrome Safe Storage"). Click **Always Allow**.
 
+On recent macOS (seen on 27) there's a second prompt: BizneoCompanion asks to access
+**Google Chrome**'s data. Click **Allow**. You'll find it again under System Settings
+→ Privacy & Security → **Files & Folders** → BizneoCompanion.
+
 <details>
 <summary><b>Finding your tenant &amp; user id</b></summary>
 
@@ -168,6 +172,8 @@ requests a refresh starts with. It reports *Connected* with your clock state, or
 exact problem: no cookie for that tenant in that profile, not logged in, or a User ID
 whose timesheet can't be read. With a manual cookie set it says so, since Chrome
 isn't used then. The first test may show the "Chrome Safe Storage" Keychain prompt.
+If macOS blocks access to Chrome's data, the section says so and offers **Open
+Privacy & Security…** and **Reset permission** (see the [FAQ](#faq)).
 
 Settings writes to `~/Library/Application Support/BizneoCompanion/config.json`, still
 editable by hand if you prefer (Settings → *Advanced* → **Open config file…**).
@@ -270,6 +276,17 @@ are read‑only.
 
 **It says "Not logged in"?** Your Bizneo session expired — open Bizneo in Chrome and
 log in; the app picks the new cookie up on the next refresh.
+
+**It says "macOS is blocking access to Chrome's data"?** Recent macOS (seen on 27)
+asks before an app reads another app's data. Allow **Google Chrome** under
+BizneoCompanion in Privacy & Security → **Files & Folders** (the menu's **Open
+Privacy & Security…** goes there). macOS ties that permission to one build of the
+app, so after installing a different build the toggle may keep switching itself off.
+Then use **Reset permission** in Settings → Account (or run
+`tccutil reset All com.asolfre.bizneocompanion` in Terminal), quit and reopen the
+app, and click **Allow** when asked. The reset only clears macOS privacy decisions for
+this app; notifications, open at login and Keychain access stay as they are. Running
+`--probe` from Terminal reads Chrome as Terminal, so Terminal needs the access then.
 
 **Does it work with Safari/Firefox?** Currently Chrome only. (Or paste a cookie via
 `manualCookie`.)
