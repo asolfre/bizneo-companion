@@ -55,6 +55,7 @@ Bizneo Companion puts your running time balance right in the menu bar and lets y
 - 🏖️ **Knows your days off** — company free Fridays ("Fridom") don't get counted as
   missing time.
 - 🔐 **No password, no API token** — reuses your existing Chrome session, all locally.
+  (The optional [Slack sync](#slack-sync) is the one feature that needs a token.)
 
 ## Features
 
@@ -224,7 +225,9 @@ Pick what it updates with **Update**:
 
 A status you set yourself (🌴 Vacation, 📅 In a meeting) is never replaced. Statuses
 expire after two refresh intervals and are renewed while you work, so quitting the
-app or sleeping the Mac lets Slack clear them. Switching the sync off clears ours and
+app or sleeping the Mac lets Slack clear them. Presence has no expiry, so quitting
+the app (or logging out) sets it back to auto; only a crash or force-quit can leave
+you on away, until the app next runs. Switching the sync off clears ours and
 sets presence back to auto.
 
 **Getting a token** (about 5 minutes):

@@ -123,6 +123,29 @@ final class StatusItemController: NSObject {
         }
     }
 
+    /// Whether quitting would leave a sticky `away` behind: presence has no expiry,
+    /// unlike our statuses.
+    var slackPresenceNeedsReset: Bool {
+        config.slackSync && config.slackMode.setsPresence && slackToken != nil
+            && lastSlackTarget?.presence == "away"
+    }
+
+    /// Hand presence back to `auto` before quitting. Waits at most 3 s so Quit never
+    /// hangs on the network.
+    /// ponytail: a crash or force-quit still leaves `away`; it clears on the next launch's push.
+    func resetSlackPresence() async {
+        guard slackPresenceNeedsReset, let token = slackToken else { return }
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask {
+                _ = try? await SlackStatus.push(SlackStatus.disabled, mode: .presenceOnly,
+                                                token: token, expiresAt: Date())
+            }
+            group.addTask { try? await Task.sleep(nanoseconds: 3_000_000_000) }
+            await group.next()
+            group.cancelAll()
+        }
+    }
+
     // MARK: - Live tick
 
     /// Whether the chronometer is currently running.

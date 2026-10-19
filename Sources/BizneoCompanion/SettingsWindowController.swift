@@ -79,6 +79,9 @@ private struct SettingsView: View {
     @State private var loginError: String?
     /// Kept out of `cfg`: written to the Keychain on save, never to config.json.
     @State private var slackToken: String
+    /// What the Keychain held when the window opened: Save only writes on a change,
+    /// since every Keychain write can re-prompt after a rebuild.
+    private let savedSlackToken: String
 
     private let projects: [ChronoProject]
     private let onSave: (Config) -> Void
@@ -94,7 +97,8 @@ private struct SettingsView: View {
         let login = Self.loginState()
         _openAtLogin = State(initialValue: login.on)
         _loginNeedsApproval = State(initialValue: login.needsApproval)
-        _slackToken = State(initialValue: SlackToken.read() ?? "")
+        savedSlackToken = SlackToken.read() ?? ""
+        _slackToken = State(initialValue: savedSlackToken)
         self.projects = projects
         self.onSave = onSave
         self.onCancel = onCancel
@@ -350,7 +354,7 @@ private struct SettingsView: View {
         out.userId = out.userId.trimmingCharacters(in: .whitespaces)
         out.dayOffScheduleNames = commaList(dayOffText)
         out.reminderWindows = commaList(remindersText)
-        SlackToken.save(trimmedSlackToken)
+        if trimmedSlackToken != savedSlackToken { SlackToken.save(trimmedSlackToken) }
         if trimmedSlackToken.isEmpty { out.slackSync = false }
         onSave(out)
     }

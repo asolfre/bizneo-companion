@@ -53,6 +53,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             c.start()
         }
     }
+
+    /// Quit, logout and shutdown all come through here.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        MainActor.assumeIsolated {
+            guard let c = controller, c.slackPresenceNeedsReset else { return .terminateNow }
+            Task { @MainActor in
+                await c.resetSlackPresence()
+                NSApp.reply(toApplicationShouldTerminate: true)
+            }
+            return .terminateLater
+        }
+    }
 }
 let delegate = AppDelegate()
 app.delegate = delegate
