@@ -7,10 +7,10 @@ the live cookie path, and both are pure convenience over fields that already wor
 
 ## Steps
 
-- [ ] Profile enumeration and session check in `ChromeCookies`
-- [ ] `BizneoClient.testConnection()` with a pure `connectionCheck`
-- [ ] Account section: profile picker, session markers, Test connection
-- [ ] Self-test, README Settings paragraph
+- [x] Profile enumeration and session check in `ChromeCookies`
+- [x] `BizneoClient.testConnection()` with a pure `connectionCheck`
+- [x] Account section: profile picker, session markers, Test connection
+- [x] Self-test, README Settings paragraph
 - [ ] Manual checks recorded below; plan moved to `done/`
 
 ## Context
