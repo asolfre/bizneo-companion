@@ -169,8 +169,8 @@ and marks the ones holding a Bizneo login for the tenant you typed as
 **Bizneo session**. A marked profile's login may still have expired, so **Test
 connection** checks the values in the form, before you save, with the same two
 requests a refresh starts with. It reports *Connected* with your clock state, or the
-exact problem: no cookie for that tenant in that profile, not logged in, or a User ID
-whose timesheet can't be read. With a manual cookie set it says so, since Chrome
+exact problem: no cookie for that tenant in that profile, not logged in, or an
+unknown User ID (Bizneo answers 404). With a manual cookie set it says so, since Chrome
 isn't used then. The first test may show the "Chrome Safe Storage" Keychain prompt.
 If macOS blocks access to Chrome's data, the section says so and offers **Open
 Privacy & Security…** and **Reset permission** (see the [FAQ](#faq)).

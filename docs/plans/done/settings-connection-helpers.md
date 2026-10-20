@@ -12,7 +12,7 @@ the live cookie path, and both are pure convenience over fields that already wor
 - [x] Account section: profile picker, session markers, Test connection
 - [x] Self-test, README Settings paragraph
 - [x] macOS privacy block: detection, menu action, Settings hint with Reset permission (§3)
-- [ ] Manual checks recorded below; plan moved to `done/`
+- [x] Manual checks recorded below; plan moved to `done/`
 
 ## Context
 
@@ -89,9 +89,13 @@ things:
 - Result inline: `✓ Connected · clock running` / `on a break` / `stopped`, or the
   exact `BizneoError` text. The useful failures tell themselves apart: a wrong
   tenant fails before any request ("No cookies for x.bizneohr.com in Chrome profile
-  …"), a dead session is "Not logged in", a wrong user ID is the parse failure.
+  …"), a dead session is "Not logged in". A wrong user ID was expected to be the
+  parse failure, but Bizneo answers **HTTP 404** for an unknown user ID (seen in
+  testing), so Test connection turns a 404 into "Bizneo returned HTTP 404: check
+  the User ID". Only there: in the menu bar a 404 could also mean Bizneo changed
+  its pages. The parse check stays as the guard against a 200 with the wrong page.
 - A manual cookie bypasses Chrome entirely (`BizneoClient.cookieHeader`), so a pass
-  then says nothing about the profile: the result adds "manual cookie; Chrome
+  then says nothing about the profile: the result adds "· manual cookie, Chrome
   profile not used".
 - Disabled while running (with a spinner) and until tenant and user ID are set.
   Editing tenant, user ID, profile or manual cookie clears the result, so a ✓ never
@@ -187,9 +191,17 @@ A review of the macOS-block plan, before code, changed it:
   | Sort order | ❌ byte order put "OLD …" before lowercase names — fixed (Finder order) |
   | Blocked access (macOS 27) | ❌ "Chrome cookie DB not found", text field, no markers — fixed by §3 |
 
-- Manual, after §3 (to record here): wrong tenant → "no cookies" error; wrong user
-  ID → error; manual cookie → the result mentions it; the window opens instantly;
-  with the grant held by another build: the menu shows the short line and **Open
-  Privacy & Security…** (not the log-in action), Settings shows the hint, **Reset
-  permission** works (or the Copy fallback shows), and after Allow + reopening the
-  picker and markers appear.
+- Manual, build `0.4.0+0b02803` (after §3, before the 404 hint):
+
+  | Check | Result |
+  |---|---|
+  | Picker names match Chrome's menu, Finder order | ✅ |
+  | Session markers | ✅ |
+  | Wrong tenant | ✅ "Couldn't read Chrome cookie: No cookies for …", before any request |
+  | Wrong user ID | ⚠️ "Bizneo returned HTTP 404" — fails correctly, but didn't name the field; the "check the User ID" hint was added after |
+  | Manual cookie | ✅ the result says the Chrome profile isn't used |
+  | Window opens instantly | ✅ |
+  | Blocked (grant held by another build): menu line + **Open Privacy & Security…**, no log-in action | ✅ |
+  | **Open Privacy & Security…** opens Files & Folders | ✅ |
+  | Settings hint; **Reset permission** from inside the app | ✅ the button worked (no Copy fallback needed) |
+  | After Allow + reopening Settings: picker and markers back | ✅ |

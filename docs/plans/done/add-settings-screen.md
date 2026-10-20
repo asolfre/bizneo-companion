@@ -47,7 +47,7 @@ Two items from the original design were cut. They were about 60% of the projecte
 code for the least of the window's value, and neither is a regression: both fields
 are still editable, just as plain text, exactly as they were when the only editor was
 the JSON file. They're carried forward in
-[`pending/settings-connection-helpers.md`](../pending/settings-connection-helpers.md)
+[`settings-connection-helpers.md`](settings-connection-helpers.md) (since shipped)
 rather than dropped.
 
 - **Chrome profile auto-detect** — directory enumeration, `Preferences` JSON parsing

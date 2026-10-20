@@ -478,7 +478,7 @@ private struct SettingsView: View {
         probe.userId = probe.userId.trimmingCharacters(in: .whitespaces)
         let key = connectionKey
         // A manual cookie bypasses Chrome, so a pass says nothing about the profile.
-        let note = (probe.manualCookie ?? "").isEmpty ? "" : " (manual cookie; Chrome profile not used)"
+        let note = (probe.manualCookie ?? "").isEmpty ? "" : " · manual cookie, Chrome profile not used"
         testing = true
         Task { @MainActor in
             defer { testing = false }
@@ -487,7 +487,10 @@ private struct SettingsView: View {
                 testResult = (key, true, "✓ Connected · \(label(status))\(note)")
             } catch {
                 if case BizneoError.chromeAccessBlocked = error { chromeBlocked = true }
-                let message = (error as? BizneoError)?.errorDescription ?? error.localizedDescription
+                var message = (error as? BizneoError)?.errorDescription ?? error.localizedDescription
+                // Seen in testing: Bizneo answers 404 for an unknown User ID. Only here,
+                // not in the menu bar, where a 404 could also mean Bizneo changed its pages.
+                if case BizneoError.http(404, _) = error { message += ": check the User ID" }
                 testResult = (key, false, message + note)
             }
         }
