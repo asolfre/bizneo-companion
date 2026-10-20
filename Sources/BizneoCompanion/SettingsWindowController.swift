@@ -480,7 +480,9 @@ private struct SettingsView: View {
         // A manual cookie bypasses Chrome, so a pass says nothing about the profile.
         let note = (probe.manualCookie ?? "").isEmpty ? "" : " · manual cookie, Chrome profile not used"
         testing = true
-        Task { @MainActor in
+        // [probe]: a constant copy. CI's Swift 5.10 rejects a captured `var` here
+        // (local 6.x accepts it).
+        Task { @MainActor [probe] in
             defer { testing = false }
             do {
                 let status = try await BizneoClient(config: probe).testConnection()

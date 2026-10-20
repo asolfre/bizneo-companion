@@ -17,6 +17,11 @@ HTML endpoints**, authenticated by reusing the Chrome session cookie.
 - `swift test` (XCTest `ParserTests`) only runs on full Xcode (CI). CI is
   `.github/workflows/ci.yml` on `macos-14`: build (debug+release) → `swift test` →
   `--selftest` → `./build_app.sh`.
+- **CI's compiler is older than the local one** (Swift 5.10 on `macos-14` vs 6.x
+  locally after the macOS 27 upgrade) and stricter about concurrency: e.g. a `var`
+  captured in a `Task` closure builds locally but fails CI ("reference to captured
+  var … in concurrently-executing code"). A green local build isn't a green CI —
+  push and watch the PR's checks. CI runs only on PRs and `main`, not on branch pushes.
 - Package the app: `./build_app.sh` → release build + assembles & ad-hoc-signs
   `BizneoCompanion.app` at repo root (`LSUIElement` agent, no Dock icon).
 - Repo lives under Google Drive; pass `BUILD_PATH=/tmp/bc` to keep `.build` off the
