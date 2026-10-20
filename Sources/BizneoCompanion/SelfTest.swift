@@ -426,6 +426,73 @@ enum SelfTest {
         check(AppInfo.display(version: "0.3.0", build: "d8c9728.dirty") == "0.3.0+d8c9728.dirty", "uncommitted changes show .dirty")
         check(AppInfo.display(version: "0.3.0", build: nil) == "0.3.0+dev", "unbundled (swift run) shows +dev")
 
+        // Settings connection helpers. See docs/plans/done/settings-connection-helpers.md.
+        print("chrome profiles:")
+        let chromeDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("bc_selftest_chrome_\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: chromeDir) }
+        func touchJar(_ dir: String) {
+            let d = chromeDir.appendingPathComponent(dir)
+            try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
+            FileManager.default.createFile(atPath: d.appendingPathComponent("Cookies").path, contents: Data())
+        }
+        func writeLocalState(_ s: String) {
+            try? FileManager.default.createDirectory(at: chromeDir, withIntermediateDirectories: true)
+            try? s.write(to: chromeDir.appendingPathComponent("Local State"), atomically: true, encoding: .utf8)
+        }
+        ["Default", "Profile 2", "Profile 3", "Profile 4", "System Profile"].forEach(touchJar)   // "Profile 9" has no jar
+        writeLocalState(#"{"profile":{"info_cache":{"#
+            + #""Default":{"name":"Work","user_name":"a@example.test"},"#
+            + #""Profile 2":{"name":"Home","user_name":""},"#
+            + #""Profile 3":{"name":"alpha"},"#
+            + #""Profile 4":{"name":"Home"},"#
+            + #""Profile 9":{"name":"Gone"}}}}"#)
+        // ASCII names only: localizedStandardCompare must give the same order on any locale.
+        let found = (try? ChromeCookies.profiles(chromeDir: chromeDir)) ?? []
+        check(found.map(\.dir) == ["Profile 3", "Profile 2", "Profile 4", "Default"],
+              "lists info_cache profiles with a cookie jar, Finder order then dir; skips System Profile",
+              found.map(\.dir))
+        check(found.map(\.label) == ["alpha (Profile 3)", "Home (Profile 2)", "Home (Profile 4)",
+                                     "Work — a@example.test (Default)"],
+              "label = name — email (dir), no email when signed out", found.map(\.label))
+        check((try? ChromeCookies.hasSessionCookie(profile: "Default", host: "x.bizneohr.com",
+                                                   chromeDir: chromeDir)) == false,
+              "jar without the cookie → no session")
+        check((try? ChromeCookies.hasSessionCookie(profile: "Nope", host: "x.bizneohr.com",
+                                                   chromeDir: chromeDir)) == false,
+              "missing profile → no session, not blocked")
+        // A file that exists but can't be read stands in for the macOS privacy block:
+        // same code path (exists + read fails), different errno. Root reads 000 files.
+        if getuid() != 0 {
+            func blocked(_ f: () throws -> Any) -> Bool {
+                do { _ = try f(); return false }
+                catch BizneoError.chromeAccessBlocked { return true }
+                catch { return false }
+            }
+            let unreadable: [FileAttributeKey: Any] = [.posixPermissions: 0o000]
+            let jar = chromeDir.appendingPathComponent("Default/Cookies")
+            try? FileManager.default.setAttributes(unreadable, ofItemAtPath: jar.path)
+            check(blocked { try ChromeCookies.hasSessionCookie(profile: "Default", host: "x.bizneohr.com",
+                                                                chromeDir: chromeDir) },
+                  "unreadable cookie jar → blocked, not \"not found\"")
+            try? FileManager.default.setAttributes(unreadable,
+                                                   ofItemAtPath: chromeDir.appendingPathComponent("Local State").path)
+            check(blocked { try ChromeCookies.profiles(chromeDir: chromeDir) }, "unreadable Local State → blocked")
+            try? FileManager.default.removeItem(at: chromeDir.appendingPathComponent("Local State"))
+        }
+        check(BizneoError.chromeAccessBlocked.errorDescription == "macOS is blocking access to Chrome's data",
+              "blocked message stays short (menu line, notification body)")
+        writeLocalState("not json")
+        check((try? ChromeCookies.profiles(chromeDir: chromeDir))?.isEmpty == true, "malformed Local State → none found")
+        check((try? ChromeCookies.profiles(chromeDir: chromeDir.appendingPathComponent("missing")))?.isEmpty == true,
+              "no Chrome directory → none found")
+
+        print("connection check:")
+        check((try? BizneoClient.connectionCheck(hub: hub, logs: logs)) == .working,
+              "hub_chrono + my_logs fixtures pass", (try? BizneoClient.connectionCheck(hub: hub, logs: logs)) as Any)
+        check((try? BizneoClient.connectionCheck(hub: "", logs: logs)) == nil, "unreadable clock fails")
+        check((try? BizneoClient.connectionCheck(hub: hub, logs: "")) == nil, "unreadable month fails")
+
         print(failures == 0 ? "\nALL PASSED ✅" : "\n\(failures) FAILED ❌")
         return failures == 0 ? 0 : 1
     }

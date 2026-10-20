@@ -3,6 +3,24 @@ import Security
 import SQLite3
 import CommonCrypto
 
+/// A Chrome profile as Chrome's own menu lists it.
+public struct ChromeProfile: Equatable {
+    /// The directory name, e.g. `Profile 3`: what `Config.chromeProfile` stores.
+    public let dir: String
+    public let name: String
+    /// The signed-in Google account; nil when the profile isn't signed in.
+    public let email: String?
+
+    public init(dir: String, name: String, email: String?) {
+        self.dir = dir; self.name = name; self.email = email
+    }
+
+    /// `Work — you@company.com (Profile 3)`, or `Work (Profile 3)` without an account.
+    public var label: String {
+        "\(name)\(email.map { " — \($0)" } ?? "") (\(dir))"
+    }
+}
+
 /// Reads and decrypts Chrome's `_hcmex_key` (and `device_id`) session cookies on macOS.
 ///
 /// macOS Chrome cookie scheme (`v10`):
@@ -51,23 +69,81 @@ public enum ChromeCookies {
         return data
     }
 
-    // MARK: - SQLite
+    // MARK: - Profiles
 
-    static func chromeCookiesPath(profile: String) -> URL {
+    public static var defaultChromeDir: URL {
         FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/Google/Chrome/\(profile)/Cookies")
+            .appendingPathComponent("Library/Application Support/Google/Chrome")
     }
 
-    static func readEncryptedCookies(profile: String, host: String, names: [String]) throws -> [String: Data] {
-        let src = chromeCookiesPath(profile: profile)
+    /// Chrome's own profile list (`Local State` → `profile.info_cache`), limited to
+    /// profiles with a cookie jar. Not each profile's `Preferences`: its `profile.name`
+    /// can differ from Chrome's menu, and System/Guest profiles have one too.
+    /// The layout is undocumented, so a missing or unparsable file is "none found".
+    /// Throws only `chromeAccessBlocked`: the file is there but can't be read.
+    public static func profiles(chromeDir: URL = defaultChromeDir) throws -> [ChromeProfile] {
+        let data = try readBlockable(chromeDir.appendingPathComponent("Local State")) {
+            try Data(contentsOf: $0)
+        }
+        guard let data,
+              let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let cache = (root["profile"] as? [String: Any])?["info_cache"] as? [String: Any]
+        else { return [] }
+        func nonEmpty(_ v: Any?) -> String? { (v as? String).flatMap { $0.isEmpty ? nil : $0 } }
+        return cache.compactMap { dir, value -> ChromeProfile? in
+            let jar = chromeDir.appendingPathComponent(dir).appendingPathComponent("Cookies")
+            guard FileManager.default.fileExists(atPath: jar.path) else { return nil }
+            let info = value as? [String: Any] ?? [:]
+            return ChromeProfile(dir: dir, name: nonEmpty(info["name"]) ?? dir, email: nonEmpty(info["user_name"]))
+        }
+        // Finder order (case-insensitive), then the directory so equal names stay stable.
+        .sorted {
+            let c = $0.name.localizedStandardCompare($1.name)
+            return c == .orderedSame ? $0.dir < $1.dir : c == .orderedAscending
+        }
+    }
+
+    /// Whether `profile` holds a Bizneo session cookie for `host`. The host is stored
+    /// unencrypted, so this never touches the Keychain — but it copies the cookie DB,
+    /// so keep it off the main thread. A cookie isn't proof of a live session.
+    /// Throws only `chromeAccessBlocked`; any other failure is "no".
+    public static func hasSessionCookie(profile: String, host: String,
+                                        chromeDir: URL = defaultChromeDir) throws -> Bool {
+        do {
+            return try !readEncryptedCookies(profile: profile, host: host, names: ["_hcmex_key"],
+                                             chromeDir: chromeDir).isEmpty
+        } catch BizneoError.chromeAccessBlocked {
+            throw BizneoError.chromeAccessBlocked
+        } catch {
+            return false
+        }
+    }
+
+    /// Run `read` on `url`; nil when the file doesn't exist. A file that exists but
+    /// can't be read is the macOS privacy block — whatever the error code, so a plain
+    /// unreadable file (the self-test's `000`) takes the same path as the real thing.
+    static func readBlockable<T>(_ url: URL, _ read: (URL) throws -> T) throws -> T? {
+        do { return try read(url) } catch {
+            if FileManager.default.fileExists(atPath: url.path) { throw BizneoError.chromeAccessBlocked }
+            return nil
+        }
+    }
+
+    // MARK: - SQLite
+
+    static func chromeCookiesPath(profile: String, chromeDir: URL = defaultChromeDir) -> URL {
+        chromeDir.appendingPathComponent(profile).appendingPathComponent("Cookies")
+    }
+
+    static func readEncryptedCookies(profile: String, host: String, names: [String],
+                                     chromeDir: URL = defaultChromeDir) throws -> [String: Data] {
+        let src = chromeCookiesPath(profile: profile, chromeDir: chromeDir)
         // Copy to temp so we can read while Chrome holds a lock on the original.
         let tmp = FileManager.default.temporaryDirectory
             .appendingPathComponent("biz_cookies_\(UUID().uuidString).db")
         defer { try? FileManager.default.removeItem(at: tmp) }
-        do {
-            try? FileManager.default.removeItem(at: tmp)
-            try FileManager.default.copyItem(at: src, to: tmp)
-        } catch {
+        try? FileManager.default.removeItem(at: tmp)
+        guard try readBlockable(src, { try FileManager.default.copyItem(at: $0, to: tmp) }) != nil else {
             throw BizneoError.cookieUnavailable("Chrome cookie DB not found at \(src.path)")
         }
 

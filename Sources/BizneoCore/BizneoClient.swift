@@ -243,6 +243,26 @@ public final class BizneoClient {
         TimesheetParser.parseChronoState(try await fetchHubChrono())
     }
 
+    /// Settings → Test connection: the two requests a refresh starts with and
+    /// nothing else (no year total, no pending change-request lookups).
+    public func testConnection(now: Date = Date()) async throws -> ChronoStatus {
+        let cal = Calculator.madridCalendar(weekStartsMonday: config.weekStartsMonday)
+        async let hub = fetchHubChrono()
+        async let logs = fetchMonthLogs(month: cal.component(.month, from: now),
+                                        year: cal.component(.year, from: now))
+        return try Self.connectionCheck(hub: try await hub, logs: try await logs)
+    }
+
+    /// Bizneo has answered 200 for broken sessions, so a response proves nothing on
+    /// its own: both pages must parse. A wrong user ID fails here.
+    public static func connectionCheck(hub: String, logs: String) throws -> ChronoStatus {
+        let status = TimesheetParser.parseChronoState(hub).status
+        guard status != .unknown, TimesheetParser.parseMonthBalance(logs) != nil else {
+            throw BizneoError.parse("the clock or this month's balance is missing — check the User ID")
+        }
+        return status
+    }
+
     private func urlEncode(_ s: String) -> String {
         var allowed = CharacterSet.alphanumerics
         allowed.insert(charactersIn: "-._~")

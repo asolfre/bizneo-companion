@@ -77,6 +77,19 @@ private struct SettingsView: View {
     @State private var openAtLogin: Bool
     @State private var loginNeedsApproval: Bool
     @State private var loginError: String?
+    /// Loaded off the main thread once the window is up; until then (or when none
+    /// are found) the plain text field shows.
+    @State private var chromeProfiles: [ChromeProfile] = []
+    @State private var profilesLoaded = false
+    /// Some read of Chrome's data was refused by macOS: shows `chromeAccessHint`.
+    @State private var chromeBlocked = false
+    /// Result of the last Reset permission click; nil = not clicked.
+    @State private var resetWorked: Bool?
+    /// Profiles holding a Bizneo cookie for the typed tenant; filled in off the main thread.
+    @State private var sessionProfiles: Set<String> = []
+    @State private var testing = false
+    /// `key` = the values tested (`connectionKey`), so the result hides once they change.
+    @State private var testResult: (key: [String], ok: Bool, text: String)?
     /// Kept out of `cfg`: written to the Keychain on save, never to config.json.
     @State private var slackToken: String
     /// What the Keychain held when the window opened: Save only writes on a change,
@@ -142,8 +155,113 @@ private struct SettingsView: View {
         Section("Account") {
             TextField("Tenant", text: $cfg.tenant, prompt: Text("your-company"))
             TextField("User ID", text: $cfg.userId, prompt: Text("123456"))
+            profileField
+            HStack {
+                Button("Test connection", action: testConnection)
+                    .disabled(testing || cfg.tenant.trimmingCharacters(in: .whitespaces).isEmpty
+                              || cfg.userId.trimmingCharacters(in: .whitespaces).isEmpty)
+                if testing { ProgressView().controlSize(.small) }
+            }
+            // Shown only for the values it tested, so a ✓ never sits next to edits.
+            if let r = testResult, r.key == connectionKey {
+                Text(r.text).font(.caption).foregroundStyle(r.ok ? .green : .red)
+            }
+            Text("Checks the values above against Bizneo before you save. The first check may ask for Keychain access to “Chrome Safe Storage”: click Always Allow.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            if chromeBlocked { chromeAccessHint }
+        }
+        // Restarts on every tenant edit, so the 0.5 s pause doubles as a debounce.
+        // Everything that reads Chrome's data runs detached: on recent macOS it sits
+        // behind a privacy check, and the window must never wait on its prompt.
+        .task(id: cfg.tenant) {
+            if !profilesLoaded {
+                let loaded = await Task.detached { () -> (profiles: [ChromeProfile], blocked: Bool) in
+                    do { return (try ChromeCookies.profiles(), false) } catch { return ([], true) }
+                }.value
+                chromeProfiles = loaded.profiles
+                if loaded.blocked { chromeBlocked = true }
+                profilesLoaded = true
+            }
+            sessionProfiles = []
+            let tenant = cfg.tenant.trimmingCharacters(in: .whitespaces)
+            guard !tenant.isEmpty, !chromeProfiles.isEmpty else { return }
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            guard !Task.isCancelled else { return }
+            let host = Config(tenant: tenant).host
+            let dirs = chromeProfiles.map(\.dir)
+            let checked = await Task.detached { () -> (found: Set<String>, blocked: Bool) in
+                var found = Set<String>()
+                for dir in dirs {
+                    do { if try ChromeCookies.hasSessionCookie(profile: dir, host: host) { found.insert(dir) } }
+                    catch { return ([], true) }   // one grant covers every profile
+                }
+                return (found, false)
+            }.value
+            guard !Task.isCancelled else { return }
+            sessionProfiles = checked.found
+            if checked.blocked { chromeBlocked = true }
+        }
+    }
+
+    /// What to do when macOS blocks Chrome's data. The toggle alone isn't enough
+    /// once the permission belongs to another build of the app (an update): then
+    /// only a reset and a fresh prompt bring it back.
+    @ViewBuilder
+    private var chromeAccessHint: some View {
+        Text("macOS is blocking access to Chrome's data, so profiles and logins can't be read.")
+            .font(.caption)
+            .foregroundStyle(.orange)
+        Text("""
+            1. Allow Google Chrome when macOS asks, or under BizneoCompanion in Privacy & Security → Files & Folders.
+            2. If that toggle turns itself off (it does after installing another build), click Reset permission, then quit BizneoCompanion, open it again and click Allow.
+            3. Close Settings and open it again.
+            """)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        HStack {
+            Button("Open Privacy & Security…") { ChromeAccess.openSettings() }
+            Button("Reset permission") { resetWorked = ChromeAccess.resetPermission() }
+        }
+        if resetWorked == true {
+            Text("Permission reset. Quit BizneoCompanion, open it again and click Allow.")
+                .font(.caption)
+                .foregroundStyle(.green)
+        } else if resetWorked == false {
+            Text("Couldn't reset it from here. Run this in Terminal, then reopen the app:")
+                .font(.caption)
+                .foregroundStyle(.red)
+            HStack {
+                Text(ChromeAccess.resetCommand).font(.caption.monospaced()).textSelection(.enabled)
+                Button("Copy") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(ChromeAccess.resetCommand, forType: .string)
+                }
+            }
+        }
+    }
+
+    /// A picker over Chrome's profiles, the plain field when none are found.
+    /// Same rule as `projectField`: a configured profile the list doesn't contain
+    /// keeps its own row, so a working value is never hidden or overwritten.
+    @ViewBuilder
+    private var profileField: some View {
+        if chromeProfiles.isEmpty {
             TextField("Chrome profile", text: $cfg.chromeProfile, prompt: Text("Default"))
             Text("The profile directory name, e.g. `Default` or `Profile 1` — find it at chrome://version under Profile Path.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } else {
+            Picker("Chrome profile", selection: $cfg.chromeProfile) {
+                if !chromeProfiles.contains(where: { $0.dir == cfg.chromeProfile }) {
+                    Text(cfg.chromeProfile.isEmpty ? "Not set" : "\(cfg.chromeProfile) (not found in Chrome)")
+                        .tag(cfg.chromeProfile)
+                }
+                ForEach(chromeProfiles, id: \.dir) { p in
+                    Text(sessionProfiles.contains(p.dir) ? "\(p.label) · Bizneo session" : p.label).tag(p.dir)
+                }
+            }
+            Text("“Bizneo session” marks profiles holding a login cookie for this tenant. It may have expired: Test connection checks it.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -348,6 +466,38 @@ private struct SettingsView: View {
 
     // MARK: Actions
 
+    /// Everything the connection test depends on.
+    private var connectionKey: [String] {
+        [cfg.tenant, cfg.userId, cfg.chromeProfile, cfg.manualCookie ?? ""]
+    }
+
+    /// Tests the form's unsaved values, not the running config.
+    private func testConnection() {
+        var probe = cfg
+        probe.tenant = probe.tenant.trimmingCharacters(in: .whitespaces)
+        probe.userId = probe.userId.trimmingCharacters(in: .whitespaces)
+        let key = connectionKey
+        // A manual cookie bypasses Chrome, so a pass says nothing about the profile.
+        let note = (probe.manualCookie ?? "").isEmpty ? "" : " · manual cookie, Chrome profile not used"
+        testing = true
+        // [probe]: a constant copy. CI's Swift 5.10 rejects a captured `var` here
+        // (local 6.x accepts it).
+        Task { @MainActor [probe] in
+            defer { testing = false }
+            do {
+                let status = try await BizneoClient(config: probe).testConnection()
+                testResult = (key, true, "✓ Connected · \(label(status))\(note)")
+            } catch {
+                if case BizneoError.chromeAccessBlocked = error { chromeBlocked = true }
+                var message = (error as? BizneoError)?.errorDescription ?? error.localizedDescription
+                // Seen in testing: Bizneo answers 404 for an unknown User ID. Only here,
+                // not in the menu bar, where a 404 could also mean Bizneo changed its pages.
+                if case BizneoError.http(404, _) = error { message += ": check the User ID" }
+                testResult = (key, false, message + note)
+            }
+        }
+    }
+
     private func save() {
         var out = cfg
         out.tenant = out.tenant.trimmingCharacters(in: .whitespaces)
@@ -414,9 +564,47 @@ private struct SettingsView: View {
         }
     }
 
+    private func label(_ s: ChronoStatus) -> String {
+        switch s {
+        case .working: return "clock running"
+        case .paused:  return "on a break"
+        case .stopped: return "clock stopped"
+        case .unknown: return "clock state unknown"
+        }
+    }
+
     private func minutesLabel(_ seconds: Int) -> String {
         guard seconds % 60 == 0 else { return "\(seconds) seconds" }
         let m = seconds / 60
         return m == 1 ? "1 minute" : "\(m) minutes"
+    }
+}
+
+// MARK: - Chrome access (macOS privacy)
+
+/// Recovery steps for the privacy check recent macOS (seen on 27) puts on other
+/// apps' data. Shared by the Settings hint and the menu's error line.
+enum ChromeAccess {
+    static func openSettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_FilesAndFolders") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    private static var bundleID: String { Bundle.main.bundleIdentifier ?? "com.asolfre.bizneocompanion" }
+
+    static var resetCommand: String { "tccutil reset All \(bundleID)" }
+
+    /// Clears this app's privacy decisions, so the next read asks again. The only
+    /// fix once the permission belongs to another build: the toggle won't stick then.
+    /// Notifications, open at login and Keychain entries aren't privacy decisions,
+    /// so they're untouched.
+    static func resetPermission() -> Bool {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+        p.arguments = ["reset", "All", bundleID]
+        do { try p.run() } catch { return false }
+        p.waitUntilExit()
+        return p.terminationStatus == 0
     }
 }

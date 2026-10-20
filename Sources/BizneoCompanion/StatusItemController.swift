@@ -347,7 +347,10 @@ final class StatusItemController: NSObject {
 
         func addError(_ err: String) {
             menu.addItem(info("⚠︎ \(err)"))
-            if err.contains("logged in") || err.contains("cookie") {
+            // Before the "cookie" match: logging in again doesn't lift a macOS block.
+            if err == BizneoError.chromeAccessBlocked.errorDescription {
+                menu.addItem(actionItem("Open Privacy & Security…", #selector(openPrivacySettings)))
+            } else if err.contains("logged in") || err.contains("cookie") {
                 menu.addItem(actionItem("Open Bizneo to log in", #selector(openBizneo)))
             }
         }
@@ -667,6 +670,7 @@ final class StatusItemController: NSObject {
     // MARK: - Actions
 
     @objc private func refreshNow() { refresh() }
+    @objc private func openPrivacySettings() { ChromeAccess.openSettings() }
 
     @objc private func openBizneo() {
         if let url = URL(string: "https://\(config.host)/time-attendance/my-logs/\(config.userId)") {

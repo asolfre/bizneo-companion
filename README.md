@@ -98,6 +98,10 @@ development build can't be mistaken for a release.
 The first time it reads your cookie — and again after you change the Chrome profile
 — macOS shows a Keychain prompt ("Chrome Safe Storage"). Click **Always Allow**.
 
+On recent macOS (seen on 27) there's a second prompt: BizneoCompanion asks to access
+**Google Chrome**'s data. Click **Allow**. You'll find it again under System Settings
+→ Privacy & Security → **Files & Folders** → BizneoCompanion.
+
 <details>
 <summary><b>Finding your tenant &amp; user id</b></summary>
 
@@ -110,7 +114,10 @@ https://<your-company>.bizneohr.com/time-attendance/my-logs/<your-user-id>
 - `tenant` = `<your-company>`
 - `userId` = `<your-user-id>` (the number)
 - `chromeProfile` = the Chrome profile you're logged in with (e.g. `Default`,
-  `Profile 1`). Find it at `chrome://version` → *Profile Path*.
+  `Profile 1`). Settings lists your profiles and marks the one with a Bizneo login;
+  otherwise find it at `chrome://version` → *Profile Path*.
+
+Then click **Test connection** in Settings → Account to check all three before saving.
 </details>
 
 ## Using it day to day
@@ -155,6 +162,18 @@ reliably, keep `BizneoCompanion.app` in `/Applications` (`SMAppService` register
 app at whatever path it's running from). If macOS has blocked it, the toggle offers
 **Approve in System Settings…**. Changing the default project also replaces the one
 last picked from **Check in ▸**.
+
+The **Account** section helps you get connected. **Chrome profile** lists Chrome's
+profiles by name, signed-in account and folder (`Work — you@company.com (Profile 3)`),
+and marks the ones holding a Bizneo login for the tenant you typed as
+**Bizneo session**. A marked profile's login may still have expired, so **Test
+connection** checks the values in the form, before you save, with the same two
+requests a refresh starts with. It reports *Connected* with your clock state, or the
+exact problem: no cookie for that tenant in that profile, not logged in, or an
+unknown User ID (Bizneo answers 404). With a manual cookie set it says so, since Chrome
+isn't used then. The first test may show the "Chrome Safe Storage" Keychain prompt.
+If macOS blocks access to Chrome's data, the section says so and offers **Open
+Privacy & Security…** and **Reset permission** (see the [FAQ](#faq)).
 
 Settings writes to `~/Library/Application Support/BizneoCompanion/config.json`, still
 editable by hand if you prefer (Settings → *Advanced* → **Open config file…**).
@@ -257,6 +276,17 @@ are read‑only.
 
 **It says "Not logged in"?** Your Bizneo session expired — open Bizneo in Chrome and
 log in; the app picks the new cookie up on the next refresh.
+
+**It says "macOS is blocking access to Chrome's data"?** Recent macOS (seen on 27)
+asks before an app reads another app's data. Allow **Google Chrome** under
+BizneoCompanion in Privacy & Security → **Files & Folders** (the menu's **Open
+Privacy & Security…** goes there). macOS ties that permission to one build of the
+app, so after installing a different build the toggle may keep switching itself off.
+Then use **Reset permission** in Settings → Account (or run
+`tccutil reset All com.asolfre.bizneocompanion` in Terminal), quit and reopen the
+app, and click **Allow** when asked. The reset only clears macOS privacy decisions for
+this app; notifications, open at login and Keychain access stay as they are. Running
+`--probe` from Terminal reads Chrome as Terminal, so Terminal needs the access then.
 
 **Does it work with Safari/Firefox?** Currently Chrome only. (Or paste a cookie via
 `manualCookie`.)
