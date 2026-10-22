@@ -17,18 +17,21 @@ concurrency:
 jobs:
   build-test:
     name: Build & Test (macOS)
-    runs-on: macos-14
+    # Preview image, same Xcode as local development. Keep runner, DEVELOPER_DIR and
+    # the Xcode check in sync with release.yml; fallback in AGENTS.md.
+    runs-on: xcode-27
+    timeout-minutes: 20
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+      UNIVERSAL: 1
     steps:
       - uses: actions/checkout@v5
 
-      - name: Swift version
-        run: swift --version
+      - name: Xcode version
+        run: xcodebuild -version | tee /dev/stderr | grep '^Xcode 27\.1' >/dev/null
 
       - name: Build (debug)
         run: swift build
-
-      - name: Build (release)
-        run: swift build -c release
 
       - name: Test (XCTest)
         run: swift test
@@ -36,5 +39,15 @@ jobs:
       - name: Self-test (parsers / calculator / chrono / year)
         run: swift run BizneoCompanion --selftest Tests/BizneoCompanionTests/Fixtures
 
-      - name: Package .app
+      - name: Package .app (universal)
         run: ./build_app.sh
+
+      - name: Check the app
+        run: |
+          app=BizneoCompanion.app
+          for arch in arm64 x86_64; do
+            lipo "$app/Contents/MacOS/BizneoCompanion" -verify_arch "$arch" ||
+              { echo "::error::app lacks $arch"; exit 1; }
+          done
+          codesign --verify --strict "$app"
+          /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' -c 'Print CFBundleVersion' "$app/Contents/Info.plist"

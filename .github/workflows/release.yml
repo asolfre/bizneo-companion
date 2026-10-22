@@ -1,0 +1,69 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  # Only the release build: ci.yml must already be green on the tagged commit.
+  release:
+    # Keep runner, DEVELOPER_DIR and the Xcode check in sync with ci.yml.
+    runs-on: xcode-27
+    timeout-minutes: 20
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+      UNIVERSAL: 1
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # build_app.sh: commit count = CFBundleVersion; the tag marks a release build
+          persist-credentials: false  # gh uses GH_TOKEN; the tag fetch below needs no auth
+
+      - name: Xcode version
+        run: xcodebuild -version | tee /dev/stderr | grep '^Xcode 27\.1' >/dev/null
+
+      - name: Build
+        run: ./build_app.sh
+
+      - name: Check and package
+        run: |
+          app=BizneoCompanion.app
+          plist=$app/Contents/Info.plist
+          version=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$plist")
+          [ "$GITHUB_REF_NAME" = "v$version" ] ||
+            { echo "::error::Tag $GITHUB_REF_NAME does not match app version $version"; exit 1; }
+          build=$(/usr/libexec/PlistBuddy -c 'Print BCBuild' "$plist")
+          [ -z "$build" ] || { echo "::error::Not a release build (BCBuild=$build)"; exit 1; }
+          for arch in arm64 x86_64; do
+            lipo "$app/Contents/MacOS/BizneoCompanion" -verify_arch "$arch" ||
+              { echo "::error::app lacks $arch"; exit 1; }
+          done
+          codesign --verify --strict "$app"
+
+          zip="BizneoCompanion-$version-macos-universal.zip"
+          ditto -c -k --keepParent "$app" "$zip"
+
+          # hdiutil sometimes fails with "Resource busy" on hosted runners: re-run the
+          # job (nothing is published before this step finishes).
+          stage="$RUNNER_TEMP/dmg"
+          mkdir "$stage"
+          ditto "$app" "$stage/BizneoCompanion.app"
+          ln -s /Applications "$stage/Applications"
+          dmg="BizneoCompanion-$version-macos-universal.dmg"
+          hdiutil create -volname "Bizneo Companion" -srcfolder "$stage" -format UDZO "$dmg"
+
+          for f in "$zip" "$dmg"; do shasum -a 256 "$f" > "$f.sha256"; done
+          echo "ZIP=$zip" >> "$GITHUB_ENV"
+          echo "DMG=$dmg" >> "$GITHUB_ENV"
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # checkout turns the annotated tag into a lightweight one; --notes-from-tag needs the real one
+          git fetch --force origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
+          gh release create "$GITHUB_REF_NAME" "$DMG" "$DMG.sha256" "$ZIP" "$ZIP.sha256" \
+            --title "$GITHUB_REF_NAME" --notes-from-tag
