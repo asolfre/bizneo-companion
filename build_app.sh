@@ -24,13 +24,20 @@ else
 fi
 DISPLAY_VERSION="$VERSION${BUILD:++$BUILD}"
 
+# UNIVERSAL=1 (set by CI and the release workflow) builds arm64 + x86_64. A string,
+# not an array: macOS's bash 3.2 fails on an empty array under `set -u`.
+ARCHS="${UNIVERSAL:+--arch arm64 --arch x86_64}"
+
 echo "▸ Building release…"
-swift build -c release --build-path "$BUILD_PATH" 2>/dev/null || swift build -c release --build-path "$BUILD_PATH"
+swift build -c release --build-path "$BUILD_PATH" $ARCHS 2>/dev/null || swift build -c release --build-path "$BUILD_PATH" $ARCHS
+# Ask SwiftPM where the binary is: the folder depends on the toolchain and the
+# architectures (Xcode 27.1: out/Products/Release; older build systems differ).
+BIN_DIR="$(swift build -c release --build-path "$BUILD_PATH" $ARCHS --show-bin-path)"
 
 echo "▸ Assembling ${APP_NAME}.app…"
 rm -rf "$APP_DIR"
 mkdir -p "${CONTENTS}/MacOS" "${CONTENTS}/Resources"
-cp "${BUILD_PATH}/release/${APP_NAME}" "${CONTENTS}/MacOS/${APP_NAME}"
+cp "${BIN_DIR}/${APP_NAME}" "${CONTENTS}/MacOS/${APP_NAME}"
 
 cat > "${CONTENTS}/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>

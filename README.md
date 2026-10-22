@@ -74,10 +74,36 @@ Bizneo Companion puts your running time balance right in the menu bar and lets y
 | 💬 **Slack sync** *(optional)* | Mirrors working / on a break / off into your Slack status and/or presence — never overwrites a status you set yourself. See [Slack sync](#slack-sync). |
 | 🪶 **Tiny & native** | Swift menu‑bar agent, no Dock icon, no Electron |
 
+## Download
+
+Get **`BizneoCompanion-<version>-macos-universal.dmg`** from the
+[latest release](https://github.com/asolfre/bizneo-companion/releases/latest), open it
+and drag **BizneoCompanion** onto **Applications**. (There's a `.zip` too: unzip it
+and move the app to Applications.) Universal build (Apple silicon and Intel), macOS
+13 or later; tested on Apple silicon only.
+
+Bizneo Companion isn't notarized by Apple, so macOS blocks the first launch. Open it
+once, then go to **System Settings → Privacy & Security** and click **Open Anyway**.
+Or, in Terminal:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/BizneoCompanion.app
+```
+
+Then point it at your account (menu → **Settings…**) and allow the prompts described
+under [Quick start](#quick-start).
+
+**Updating:** quit the app, replace it in Applications, open it again. Every build is
+a new app to macOS (it's ad-hoc signed), so after an update macOS asks again for the
+Keychain (*Chrome Safe Storage*, and the Slack token if you set one): click **Always
+Allow**. If it then says macOS is blocking access to Chrome's data, use **Reset
+permission** in Settings → Account (see the [FAQ](#faq)).
+
 ## Quick start
 
-> **Requirements:** macOS 13+, Google Chrome (logged in to Bizneo), and Apple's
-> Command Line Tools (`xcode-select --install`).
+> **Requirements:** macOS 13+, Google Chrome (logged in to Bizneo), and Xcode to
+> build (the Command Line Tools alone can't build it any more) — or skip building
+> and [download](#download) the app.
 
 ```bash
 # 1) Build the app

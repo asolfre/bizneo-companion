@@ -22,15 +22,17 @@ HTML endpoints**, authenticated by reusing the Chrome session cookie.
   `swift test` can't find XCTest. If the active developer directory flips back to
   the CLT, either `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`
   or prefix commands with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
-- CI is `.github/workflows/ci.yml` on `macos-14`: build (debug+release) →
-  `swift test` → `--selftest` → `./build_app.sh`.
-- **CI's compiler is older than the local one** (Swift 5.10 on `macos-14` vs 6.x
-  locally) and stricter about concurrency: e.g. a `var` captured in a `Task`
-  closure builds locally but fails CI ("reference to captured var … in
-  concurrently-executing code"). A green local build isn't a green CI — push and
-  watch the PR's checks. CI runs only on PRs and `main`, not on branch pushes.
+- CI is `.github/workflows/ci.yml` on the **preview** `xcode-27` image with Xcode
+  pinned to 27.1 (the local version) through `DEVELOPER_DIR`: build (debug) →
+  `swift test` → `--selftest` → universal `./build_app.sh` → `lipo` + `codesign`
+  checks. CI runs only on PRs and `main`, not on branch pushes. If that image queues
+  repeatedly or breaks, fall back in **both** `ci.yml` and `release.yml` at once:
+  `runs-on: macos-26`, `DEVELOPER_DIR` → that image's `Xcode_26.x.app`, and the
+  version check pattern to match (`'^Xcode 26\.x'`).
 - Package the app: `./build_app.sh` → release build + assembles & ad-hoc-signs
   `BizneoCompanion.app` at repo root (`LSUIElement` agent, no Dock icon).
+  `UNIVERSAL=1 ./build_app.sh` builds arm64 + x86_64 (CI and releases do). Nothing
+  runs the x86_64 slice: CI only checks it's there.
 - Repo lives under Google Drive; pass `BUILD_PATH=/tmp/bc` to keep `.build` off the
   synced folder (e.g. `BUILD_PATH=/tmp/bc swift build`).
 - **Testing a build on recent macOS (seen on 27):** reading Chrome's data needs a
@@ -65,6 +67,22 @@ HTML endpoints**, authenticated by reusing the Chrome session cookie.
 - The `asolfre` token's scopes are `gist, read:org, repo` — **no `workflow`**. SSH
   pushes are unaffected, but editing `.github/workflows/*` through the `gh` API needs
   `gh auth refresh -h github.com -u asolfre -s workflow` first.
+
+## Releasing
+
+`.github/workflows/release.yml` publishes a release for every pushed `v*` tag:
+`BizneoCompanion-<version>-macos-universal.dmg` and `.zip`, each with a `.sha256`.
+It fails unless the tag is `v` + `AppInfo.version` and the app is a release build
+(empty `BCBuild`). It doesn't re-run the tests.
+
+1. Bump `AppInfo.version` in a PR; merge it and wait for CI on `main` to pass.
+2. Write the release notes (Markdown) to a file **outside the repo**, then tag that
+   commit: `git tag -a vX.Y.Z --cleanup=verbatim -F <notes-file>`.
+   `--cleanup=verbatim` matters: git's default cleanup deletes every line starting
+   with `#`, so `## Changes` headings would vanish.
+3. `git push origin vX.Y.Z` (SSH alias; the workflow publishes with its own token,
+   no `gh auth switch`). A lightweight tag works too, but then the release notes are
+   the commit message.
 
 ## Layout
 
