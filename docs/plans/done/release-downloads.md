@@ -83,7 +83,9 @@ A challenge pass before implementation found:
   doesn't block mounting), so the README needs no DMG step. The app unzipped by
   Archive Utility and the app copied out of the DMG by Finder are both quarantined
   and rejected by Gatekeeper, as the README's **Open Anyway** / `xattr` step
-  expects. The Open Anyway click itself wasn't exercised.
+  expects. The Open Anyway click itself wasn't exercised before release; after it,
+  the published DMG downloaded in Chrome, installed to `/Applications` and launched
+  after **Open Anyway** (quarantine flag marked approved, app shows `0.4.1`).
 - macOS 27's `hdiutil` warns that `create` and `attach` are deprecated in favour of
   `diskutil image`; both still work.
 - PR CI green on `xcode-27`; after merge, the `v0.4.1` tag publishes four assets.
