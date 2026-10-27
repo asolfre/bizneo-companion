@@ -3,6 +3,7 @@
 [![Platform: macOS 13+](https://img.shields.io/badge/platform-macOS%2013%2B-black?logo=apple)](https://www.apple.com/macos/)
 [![Swift 5.9](https://img.shields.io/badge/Swift-5.9-F05138?logo=swift&logoColor=white)](https://swift.org)
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey)](LICENSE)
+[![CI](https://github.com/asolfre/bizneo-companion/actions/workflows/ci.yml/badge.svg)](https://github.com/asolfre/bizneo-companion/actions/workflows/ci.yml)
 
 **Your Bizneo time balance, live in the macOS menu bar — with one‑click clock in/out.**
 
