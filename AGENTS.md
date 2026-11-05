@@ -67,6 +67,11 @@ HTML endpoints**, authenticated by reusing the Chrome session cookie.
 - The `asolfre` token's scopes are `gist, read:org, repo` — **no `workflow`**. SSH
   pushes are unaffected, but editing `.github/workflows/*` through the `gh` API needs
   `gh auth refresh -h github.com -u asolfre -s workflow` first.
+- **Push, open or merge PRs, and push tags only when the user asks.** "Commit" means
+  a local commit; an OK to push once doesn't carry over to the next change.
+- **Squash merges re-date the commit:** the commit on `main` gets the merge time. A
+  date set on the branch commit (set both `GIT_AUTHOR_DATE` and
+  `GIT_COMMITTER_DATE`) only shows in the PR's commit list.
 
 ## Releasing
 
@@ -83,6 +88,14 @@ It fails unless the tag is `v` + `AppInfo.version` and the app is a release buil
 3. `git push origin vX.Y.Z` (SSH alias; the workflow publishes with its own token,
    no `gh auth switch`). A lightweight tag works too, but then the release notes are
    the commit message.
+
+Before changing packaging, test it without publishing: run `release.yml`'s steps in
+a fresh clone with a local tag (`GITHUB_REF_NAME`, `RUNNER_TEMP` and `GITHUB_ENV` set
+by hand), then mark the zip and DMG as downloaded
+(`xattr -w com.apple.quarantine "0083;$(printf %x $(date +%s));Safari;" <file>`) and
+install from each. On macOS 27 a quarantined, unsigned DMG still opens; the app
+copied out of it stays quarantined. Details: `docs/plans/done/release-downloads.md`
+→ Verify.
 
 ## Layout
 
