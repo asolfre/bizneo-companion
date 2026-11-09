@@ -16,6 +16,11 @@ HTML endpoints**, authenticated by reusing the Chrome session cookie.
   ```
   The self-test covers parsers, calculator, chrono state, year aggregation, day-off
   logic, config defaults, Chrome profile listing — offline, no Keychain/network.
+- **Check menu changes with `--demo`, not real clock actions:**
+  `swift run BizneoCompanion --demo <state>` from the repo root draws the menu from
+  the fixtures, in any clock state, with clock actions faked in memory. After a UI
+  change, regenerate the README images with `swift docs/screenshots.swift` (it
+  briefly switches the system appearance; see `docs/README.md`).
 - **Don't build with the Command Line Tools alone.** Since CLT 27.0 the macOS 27
   SDK's SwiftUI needs the `SwiftUIMacros` compiler plugin, which only Xcode ships:
   every `@State` fails with "plugin for module 'SwiftUIMacros' not found", and
@@ -104,7 +109,7 @@ copied out of it stays quarantined. Details: `docs/plans/done/release-downloads.
   (today/week/month/year math), `Models`, `Config`, `BizneoClient`, `ChromeCookies`
   (cookie decrypt), `TimeFmt`.
 - `Sources/BizneoCompanion/` — executable: `main`, `StatusItemController` (menu-bar
-  UI), `Probe` (`--probe`/`--dump`), `SelfTest` (`--selftest`).
+  UI), `Probe` (`--probe`/`--dump`), `SelfTest` (`--selftest`), `Demo` (`--demo`).
 - `docs/plans/` — feature design docs, tracked. `pending/` = designed but not
   implemented, `done/` = shipped (kept as an archive, **never deleted**). When a plan
   ships, `git mv docs/plans/pending/<x>.md docs/plans/done/` in the same PR that
