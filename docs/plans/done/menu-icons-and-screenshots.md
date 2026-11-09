@@ -126,6 +126,19 @@ image. `docs/README.md` lists the files.
   the pointer to the bottom-left corner of that display for the run and puts it back
   at the end.
 
+## 4. Social preview
+
+The repo had no custom social preview, so links showed GitHub's auto-generated card.
+`docs/social-preview.swift` composes `docs/social-preview.png` (1280×640) with
+AppKit: the app icon from `AppIcon.svg`, the name, the tagline, and
+`docs/menu-dark.png` on GitHub's dark page colour, so the screenshot's backdrop
+blends in. Dark was picked over a light version. GitHub has no API for the
+image, so it's uploaded by hand in Settings → General → Social preview.
+
+- **Not an SVG like the icon:** checked first, and the native SVG renderer drops
+  `<image>` and ignores font weight, so the card would have had no menu and plain
+  text.
+
 ## Rejected design
 
 - **Screen recording + ffmpeg for the GIF** (the first plan). It needs `brew install

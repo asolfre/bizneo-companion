@@ -34,6 +34,7 @@ both at the end.
 | `not-checked-in-light.png`, `-dark.png` | `--demo not-checked-in`, menu open |
 | `settings-light.png`, `-dark.png` | The Settings window with the demo's placeholder account |
 | `demo.gif` | Check in → Take break → Resume → Check out, light only |
+| `social-preview.png` | The 1280×640 card GitHub shows when the repo is shared: icon, name, tagline and `menu-dark.png`. Composed by `swift docs/social-preview.swift` (re-run it after the screenshots). GitHub has no API for it: upload it in **Settings → General → Social preview**. |
 
 ## `--demo`
 
