@@ -39,6 +39,16 @@ rm -rf "$APP_DIR"
 mkdir -p "${CONTENTS}/MacOS" "${CONTENTS}/Resources"
 cp "${BIN_DIR}/${APP_NAME}" "${CONTENTS}/MacOS/${APP_NAME}"
 
+# AppIcon.svg is the source; sips renders SVG natively, iconutil packs the sizes.
+ICONSET="$(mktemp -d)/AppIcon.iconset"
+mkdir -p "$ICONSET"
+for SIZE in 16 32 128 256 512; do
+  sips -s format png -z "$SIZE" "$SIZE" AppIcon.svg --out "${ICONSET}/icon_${SIZE}x${SIZE}.png" >/dev/null
+  sips -s format png -z $((SIZE * 2)) $((SIZE * 2)) AppIcon.svg --out "${ICONSET}/icon_${SIZE}x${SIZE}@2x.png" >/dev/null
+done
+iconutil -c icns "$ICONSET" -o "${CONTENTS}/Resources/AppIcon.icns"
+rm -rf "$(dirname "$ICONSET")"
+
 cat > "${CONTENTS}/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -52,6 +62,7 @@ cat > "${CONTENTS}/Info.plist" <<PLIST
   <key>CFBundleShortVersionString</key>   <string>${VERSION}</string>
   <key>BCBuild</key>                      <string>${BUILD}</string>
   <key>CFBundlePackageType</key>          <string>APPL</string>
+  <key>CFBundleIconFile</key>             <string>AppIcon</string>
   <key>LSMinimumSystemVersion</key>       <string>13.0</string>
   <key>LSUIElement</key>                  <true/>
   <key>NSHighResolutionCapable</key>      <true/>

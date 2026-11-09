@@ -1,4 +1,4 @@
-# ⏱️ Bizneo Companion
+# <img src="AppIcon.svg" width="44" align="top" alt=""> Bizneo Companion
 
 [![Platform: macOS 13+](https://img.shields.io/badge/platform-macOS%2013%2B-black?logo=apple)](https://www.apple.com/macos/)
 [![Swift 5.9](https://img.shields.io/badge/Swift-5.9-F05138?logo=swift&logoColor=white)](https://swift.org)
@@ -15,35 +15,15 @@ Bizneo Companion puts your running time balance right in the menu bar and lets y
 > time tracking (*control horario / fichaje / registro de jornada*). Not affiliated
 > with Bizneo.
 
-<!-- TODO: replace with a real screenshot or GIF (see docs/) -->
-<!-- ![Bizneo Companion in the menu bar](docs/screenshot.png) -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/menu-dark.png">
+  <img alt="The Bizneo Companion menu while clocked in: today, week, month and year balances, then Working, Leave by, Take break and Check out" src="docs/menu-light.png" width="523">
+</picture>
 
-```text
-         ▶︎  −0:29          ← menu bar (red = behind · green = ahead)
-         ╰───────────────────────────────╮
-           Bizneo Companion              │
-           ─────────────────────────────  │
-           🔴 Today        missing 0:29   │
-           🟢 This week    ahead   2:11   │
-           🔴 This month   missing 1:01   │  (official −8:21, +7:20 pending)
-           🟢 This year    ahead  14:30   │
-           ─────────────────────────────  │
-           🟢 Working (telework) · 09:48  │
-           🏁 Leave by 18:15              │
-              Take break                  │
-              Check out…                  │
-           ─────────────────────────────  │
-           Pending changes (2)         ▸  │
-           ─────────────────────────────  │
-           Refresh now · Settings… · Quit
-         ╰───────────────────────────────╯
-```
+…and when you forget to clock in, the bar stops showing a number at all and turns
+orange:
 
-…and when you forget to clock in, the bar stops showing a number at all:
-
-```text
-         ⏰  Check in       ← orange: hours expected today, timer not running
-```
+<img alt="The menu-bar item in orange, reading Check in" src="docs/checkin-bar.png" width="100">
 
 ## Why you'll like it
 
@@ -65,7 +45,7 @@ Bizneo Companion puts your running time balance right in the menu bar and lets y
 | 📊 **Today / week / month / year** | Running balance for each period, pending‑aware |
 | ⏰ **Forgot‑to‑clock‑in warning** | The bar turns orange and says **Check in** when hours are expected today and the timer isn't running |
 | ⏯️ **Clock controls** | Check in · Take break · Resume · Check out (with confirm) |
-| 🏁 **Leave‑by time** | While clocked in, the wall‑clock time you hit today's target |
+| 🚶 **Leave‑by time** | While clocked in, the wall‑clock time you hit today's target |
 | 🗂️ **Project picker** | Check in to a project; remembers your last one |
 | 🏠 **Telework by default** | Configurable office/telework mode |
 | 🏖️ **Day‑off aware** | Free "Fridom" Fridays don't count against you |
@@ -171,6 +151,19 @@ Then click **Test connection** in Settings → Account to check all three before
   Only the "not clocked in" state is coloured, and it's the only one that replaces
   the number — so a forgotten check-in can't hide behind a healthy weekly total.
 
+The dropdown rows carry the same icons, and the clock actions show the state they
+lead to. A full round, all from the menu:
+
+<img alt="Check in, take a break, resume, then check out and confirm, back to the orange Check in" src="docs/demo.gif" width="633">
+
+Before you clock in, the quick check-in uses your last project (or the default one),
+and **Check in ▸** lists them all:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/not-checked-in-dark.png">
+  <img alt="The menu when not clocked in: Not clocked in, missing 8:00 today, then Check in with a project" src="docs/not-checked-in-light.png" width="524">
+</picture>
+
 ## Privacy & security
 
 - 🔒 **Local only.** Everything runs on your Mac and talks directly to your Bizneo
@@ -189,6 +182,11 @@ reliably, keep `BizneoCompanion.app` in `/Applications` (`SMAppService` register
 app at whatever path it's running from). If macOS has blocked it, the toggle offers
 **Approve in System Settings…**. Changing the default project also replaces the one
 last picked from **Check in ▸**.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/settings-dark.png">
+  <img alt="The Settings window: Account (tenant, user ID, Chrome profile, Test connection) and Display sections" src="docs/settings-light.png" width="592">
+</picture>
 
 The **Account** section helps you get connected. **Chrome profile** lists Chrome's
 profiles by name, signed-in account and folder (`Work — you@company.com (Profile 3)`),
@@ -346,12 +344,12 @@ BizneoCompanion.app/Contents/MacOS/BizneoCompanion \
 ```
 
 Project layout: `Sources/BizneoCore` (parsing, models, client, cookie decrypt),
-`Sources/BizneoCompanion` (menu‑bar UI, probe, self‑test).
+`Sources/BizneoCompanion` (menu‑bar UI, probe, self‑test, and `--demo`, which draws the
+menu from the fixtures; the screenshots come from it, see [`docs/`](docs/README.md)).
 </details>
 
 ## Roadmap
 
-- [ ] Real screenshots / demo GIF
 - [ ] Optional telework/office quick toggle
 - [ ] Manual "refresh year" for late approvals in past months
 - [ ] Safari/Firefox cookie support

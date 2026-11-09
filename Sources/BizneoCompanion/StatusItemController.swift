@@ -43,9 +43,10 @@ final class StatusItemController: NSObject {
         super.init()
     }
 
-    func start() {
+    func start(demo: Snapshot? = nil) {
         menu.autoenablesItems = false
         statusItem.menu = menu
+        if let demo { apply(demo); return }   // no timer, no fetch, no reminders
         setStatus(look: .loading, text: "", color: .secondaryLabelColor, dimText: true)
         rebuildMenu(snapshot: nil)
         scheduleTimer()
@@ -64,6 +65,7 @@ final class StatusItemController: NSObject {
     // MARK: - Refresh
 
     func refresh() {
+        guard !Demo.isActive else { return }
         Task { await performRefresh() }
     }
 
@@ -91,7 +93,9 @@ final class StatusItemController: NSObject {
     private var latest: Snapshot?
     private func apply(_ snap: Snapshot) {
         latest = snap
-        lastRefreshAt = snap.generatedAt
+        // The demo's clock is fixed at 10:00 (see `Demo.snapshot`); its live tick
+        // counts from now.
+        lastRefreshAt = Demo.isActive ? Date() : snap.generatedAt
         refreshTitle()
         rebuildMenu(snapshot: snap)
         startOrStopDisplayTimer()
@@ -202,7 +206,7 @@ final class StatusItemController: NSObject {
     private func tick() {
         guard isLive else { startOrStopDisplayTimer(); return }
         refreshTitle()
-        for row in periodRows { row.item.title = periodTitleString(row.stat, secondsLive: row.secondsLive) }
+        for row in periodRows { stylePeriod(row.item, row.stat, secondsLive: row.secondsLive) }
     }
 
     // MARK: - Bar appearance
@@ -323,6 +327,11 @@ final class StatusItemController: NSObject {
         return img
     }
 
+    /// The bar's icon for a look, for a menu row: same symbol, same tint.
+    private func icon(_ look: BarLook) -> NSImage? {
+        look.symbol.flatMap { barIcon($0, tint: look.tint, description: look.label) }
+    }
+
     /// A copy of `img` with transparent padding on its trailing edge, so the icon
     /// doesn't collide with the balance's leading "−". NSButton on macOS has no
     /// image/title spacing property (`imageEdgeInsets` is UIKit-only), so the gap
@@ -346,7 +355,7 @@ final class StatusItemController: NSObject {
         periodRows.removeAll()
 
         func addError(_ err: String) {
-            menu.addItem(info("⚠︎ \(err)"))
+            menu.addItem(info(err, icon: icon(.error)))
             // Before the "cookie" match: logging in again doesn't lift a macOS block.
             if err == BizneoError.chromeAccessBlocked.errorDescription {
                 menu.addItem(actionItem("Open Privacy & Security…", #selector(openPrivacySettings)))
@@ -355,8 +364,10 @@ final class StatusItemController: NSObject {
             }
         }
 
+        // The demo leaves the version out, so README screenshots survive a release.
+        let title = Demo.isActive ? AppInfo.name : "\(AppInfo.name) v\(AppInfo.displayVersion)"
         if let s = snapshot {
-            menu.addItem(header("\(AppInfo.name) v\(AppInfo.displayVersion)"))
+            menu.addItem(header(title))
             // The figures below are the last good ones; say why the icon is ⚠︎
             // (most often an expired session) instead of only in its tooltip.
             if let err = lastError {
@@ -388,11 +399,11 @@ final class StatusItemController: NSObject {
             menu.addItem(.separator())
             menu.addItem(info((lastError == nil ? "Updated " : "Last successful update ") + timeString(s.generatedAt)))
         } else if let err = lastError {
-            menu.addItem(header("\(AppInfo.name) v\(AppInfo.displayVersion)"))
+            menu.addItem(header(title))
             addError(err)
             menu.addItem(.separator())
         } else {
-            menu.addItem(info("Loading…"))
+            menu.addItem(info("Loading…", icon: icon(.loading)))
             menu.addItem(.separator())
         }
 
@@ -404,7 +415,8 @@ final class StatusItemController: NSObject {
     }
 
     private func periodItem(_ s: PeriodStat, isToday: Bool = false) -> NSMenuItem {
-        let item = NSMenuItem(title: periodTitleString(s, secondsLive: isToday), action: nil, keyEquivalent: "")
+        let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        stylePeriod(item, s, secondsLive: isToday)
         item.isEnabled = true
         if s.hasPending {
             item.toolTip = "Includes \(TimeFmt.signed(s.pendingDeltaMin)) of pending (unapproved) changes."
@@ -413,12 +425,12 @@ final class StatusItemController: NSObject {
         return item
     }
 
-    /// Title for a period row. Seconds (H:MM:SS) tick while the timer runs per
+    /// Title and dot for a period row, both coloured by the balance sign like the
+    /// bar's text. Seconds (H:MM:SS) tick while the timer runs per
     /// `config.dropdownSecondsScope` (`none`/`today`/`all`); otherwise H:MM.
-    private func periodTitleString(_ s: PeriodStat, secondsLive: Bool) -> String {
+    private func stylePeriod(_ item: NSMenuItem, _ s: PeriodStat, secondsLive: Bool) {
         let secs = liveSeconds(s)
-        let dot = secs < 0 ? Glyph.behind : (secs > 0 ? Glyph.ahead : Glyph.level)
-        let verb = secs < 0 ? "missing" : "ahead"
+        let color = colorForSeconds(secs)
         let showSeconds = isLive && {
             switch config.dropdownSecondsScope {
             case .none:  return false
@@ -427,11 +439,21 @@ final class StatusItemController: NSObject {
             }
         }()
         let mag = showSeconds ? hmsMagnitude(secs) : TimeFmt.plain(abs(secs) / 60)
-        var title = "\(dot)\(s.label):  \(verb) \(mag)"
+        // Without a font an attributed title falls back to Helvetica 12, and
+        // without a colour to black, even in dark mode.
+        let font = NSFont.menuFont(ofSize: 0)
+        let plain: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.labelColor]
+        let title = NSMutableAttributedString(string: "\(s.label):  ", attributes: plain)
+        title.append(NSAttributedString(string: "\(secs < 0 ? "missing" : "ahead") \(mag)",
+                                        attributes: [.font: font, .foregroundColor: color]))
         if s.hasPending {
-            title += "   (official \(TimeFmt.signed(s.officialBalanceMin)), pending \(TimeFmt.signed(s.pendingDeltaMin)))"
+            title.append(NSAttributedString(
+                string: "   (official \(TimeFmt.signed(s.officialBalanceMin)), pending \(TimeFmt.signed(s.pendingDeltaMin)))",
+                attributes: plain))
         }
-        return title
+        item.attributedTitle = title
+        item.image = secs == 0 ? barIcon("circle", tint: nil, description: "On target")
+            : barIcon("circle.fill", tint: color, description: secs < 0 ? "Behind" : "Ahead")
     }
 
     private func hmsMagnitude(_ secs: Int) -> String {
@@ -441,25 +463,11 @@ final class StatusItemController: NSObject {
 
     // MARK: - Clock (chronometer) section
 
-    /// Dropdown glyphs, in one place so every row agrees. (The menu bar itself uses
-    /// SF Symbols — see `look(for:)` — but `NSMenuItem` titles stay plain text.)
-    private enum Glyph {
-        static let behind = "🔴 "
-        static let ahead = "🟢 "
-        static let level = "⚪️ "
-        static let working = "🟢"
-        static let onBreak = "⏸"
-        static let notCheckedIn = "⚠︎"
-        static let stopped = "○"
-        static let done = "✓"
-        static let unknown = "?"
-        static let leaveBy = "🏁"
-    }
-
-    /// Last project id used for check-in (persisted in UserDefaults).
+    /// Last project id used for check-in (persisted in UserDefaults). The demo
+    /// neither reads nor writes it: a fixture project must never reach a real check-in.
     private var lastProjectId: String? {
-        get { UserDefaults.standard.string(forKey: "lastProjectId") }
-        set { UserDefaults.standard.set(newValue, forKey: "lastProjectId") }
+        get { Demo.isActive ? nil : UserDefaults.standard.string(forKey: "lastProjectId") }
+        set { if !Demo.isActive { UserDefaults.standard.set(newValue, forKey: "lastProjectId") } }
     }
 
     private var modeLabel: String { config.defaultTelework ? "telework" : "office" }
@@ -476,44 +484,52 @@ final class StatusItemController: NSObject {
         let missing = TimeFmt.plain(max(0, -today.projectedBalanceMin))
         switch state {
         case .notCheckedIn:
-            return "\(Glyph.notCheckedIn) Not clocked in · missing \(missing) today"
+            return "Not clocked in · missing \(missing) today"
         case .checkedOutEarly:
-            return "\(Glyph.stopped) Checked out · logged \(TimeFmt.plain(today.loggedMin)), missing \(missing)"
+            return "Checked out · logged \(TimeFmt.plain(today.loggedMin)), missing \(missing)"
         case .doneForToday:
-            return "\(Glyph.done) Checked out · today complete"
+            return "Checked out · today complete"
         case .offDuty:
-            return "\(Glyph.stopped) No hours expected today"
+            return "No hours expected today"
         default:
-            return "\(Glyph.stopped) Not clocked in"   // unreachable: clock is running
+            return "Not clocked in"   // unreachable: clock is running
         }
     }
 
+    /// Each row shows the bar's icon for its state; an action shows the icon of the
+    /// state it leads to (Take break → pause, Check out → stop).
     private func addClockSection(_ chrono: ChronoState, state: BarState, today: PeriodStat) {
         let busy = clockBusy
+        let workingIcon = icon(look(for: .working))
+        let checkOutItem = actionItem("Check out…", #selector(checkOut), enabled: !busy,
+                                      icon: icon(look(for: .checkedOutEarly)))
         switch state {
         case .working:
             let since = chrono.startedAt.flatMap(clockTime(_:))
-            menu.addItem(info("\(Glyph.working) Working (\(modeLabel))" + (since.map { " · since \($0)" } ?? "")))
+            menu.addItem(info("Working (\(modeLabel))" + (since.map { " · since \($0)" } ?? ""), icon: workingIcon))
             if let leaveBy = expectedCheckoutText() {
-                menu.addItem(info("\(Glyph.leaveBy) Leave by \(leaveBy)"))
+                menu.addItem(info("Leave by \(leaveBy)",
+                                  icon: barIcon("figure.walk.departure", tint: nil, description: "Leave by")))
             }
-            menu.addItem(actionItem("Take break", #selector(takeBreak), enabled: !busy))
-            menu.addItem(actionItem("Check out…", #selector(checkOut), enabled: !busy))
+            menu.addItem(actionItem("Take break", #selector(takeBreak), enabled: !busy,
+                                    icon: icon(look(for: .onBreak))))
+            menu.addItem(checkOutItem)
         case .onBreak:
             let since = chrono.startedAt.flatMap(clockTime(_:))
-            menu.addItem(info("\(Glyph.onBreak) On break" + (since.map { " · since \($0)" } ?? "")))
-            menu.addItem(actionItem("Resume", #selector(resumeWork), enabled: !busy))
-            menu.addItem(actionItem("Check out…", #selector(checkOut), enabled: !busy))
+            menu.addItem(info("On break" + (since.map { " · since \($0)" } ?? ""), icon: icon(look(for: .onBreak))))
+            menu.addItem(actionItem("Resume", #selector(resumeWork), enabled: !busy, icon: workingIcon))
+            menu.addItem(checkOutItem)
         case .notCheckedIn, .checkedOutEarly, .doneForToday, .offDuty:
-            menu.addItem(info(stoppedSummary(state, today: today)))
+            menu.addItem(info(stoppedSummary(state, today: today), icon: icon(look(for: state))))
             // Quick check-in with the last-used (or configured default) project.
             let quickId = lastProjectId ?? config.defaultProjectId
             let quick = actionItem("Check in · \(projectName(quickId, in: chrono.projects)) (\(modeLabel))",
-                                   #selector(checkInQuick), enabled: !busy)
+                                   #selector(checkInQuick), enabled: !busy, icon: workingIcon)
             menu.addItem(quick)
             // Full picker.
             let checkIn = NSMenuItem(title: "Check in (\(modeLabel)) ▸", action: nil, keyEquivalent: "")
             checkIn.isEnabled = !busy
+            checkIn.image = workingIcon
             let sub = NSMenu()
             let none = NSMenuItem(title: "No project", action: #selector(checkInProject(_:)), keyEquivalent: "")
             none.target = self; none.representedObject = ""; none.isEnabled = !busy
@@ -529,7 +545,7 @@ final class StatusItemController: NSObject {
         case .unknown:
             // Previously the whole section was hidden here, which made a Bizneo
             // markup change impossible to spot. Say so instead.
-            menu.addItem(info("\(Glyph.unknown) Clock state unknown"))
+            menu.addItem(info("Clock state unknown", icon: icon(look(for: .unknown))))
         }
         if busy { menu.addItem(info("   …working…")) }
     }
@@ -556,16 +572,19 @@ final class StatusItemController: NSObject {
         return i
     }
 
-    private func info(_ t: String) -> NSMenuItem {
+    private func info(_ t: String, icon: NSImage? = nil) -> NSMenuItem {
         let i = NSMenuItem(title: t, action: nil, keyEquivalent: "")
         i.isEnabled = false
+        i.image = icon
         return i
     }
 
-    private func actionItem(_ t: String, _ sel: Selector, key: String = "", enabled: Bool = true) -> NSMenuItem {
+    private func actionItem(_ t: String, _ sel: Selector, key: String = "", enabled: Bool = true,
+                            icon: NSImage? = nil) -> NSMenuItem {
         let i = NSMenuItem(title: t, action: sel, keyEquivalent: key)
         i.target = self
         i.isEnabled = enabled
+        i.image = icon
         return i
     }
 
@@ -614,6 +633,10 @@ final class StatusItemController: NSObject {
 
     private func doClock(_ action: ChronoAction) {
         guard !clockBusy else { return }
+        if Demo.isActive {
+            if let s = latest { apply(Demo.perform(action, on: s)) }
+            return
+        }
         clockBusy = true
         rebuildMenu(snapshot: latest)
         Task { @MainActor in

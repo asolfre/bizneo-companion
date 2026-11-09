@@ -80,7 +80,7 @@ private struct SettingsView: View {
     /// Loaded off the main thread once the window is up; until then (or when none
     /// are found) the plain text field shows.
     @State private var chromeProfiles: [ChromeProfile] = []
-    @State private var profilesLoaded = false
+    @State private var profilesLoaded = Demo.isActive   // the demo never reads Chrome
     /// Some read of Chrome's data was refused by macOS: shows `chromeAccessHint`.
     @State private var chromeBlocked = false
     /// Result of the last Reset permission click; nil = not clicked.
@@ -110,7 +110,7 @@ private struct SettingsView: View {
         let login = Self.loginState()
         _openAtLogin = State(initialValue: login.on)
         _loginNeedsApproval = State(initialValue: login.needsApproval)
-        savedSlackToken = SlackToken.read() ?? ""
+        savedSlackToken = Demo.isActive ? "" : (SlackToken.read() ?? "")
         _slackToken = State(initialValue: savedSlackToken)
         self.projects = projects
         self.onSave = onSave
@@ -134,9 +134,11 @@ private struct SettingsView: View {
             Divider()
 
             HStack {
-                Text("v\(AppInfo.displayVersion)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if !Demo.isActive {   // see rebuildMenu: screenshots outlive the version
+                    Text("v\(AppInfo.displayVersion)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 Spacer()
                 Button("Cancel", action: onCancel)
                     .keyboardShortcut(.cancelAction)
@@ -473,6 +475,7 @@ private struct SettingsView: View {
 
     /// Tests the form's unsaved values, not the running config.
     private func testConnection() {
+        guard !Demo.isActive else { return }   // would read Chrome's cookie and the Keychain
         var probe = cfg
         probe.tenant = probe.tenant.trimmingCharacters(in: .whitespaces)
         probe.userId = probe.userId.trimmingCharacters(in: .whitespaces)
@@ -499,6 +502,8 @@ private struct SettingsView: View {
     }
 
     private func save() {
+        // The demo's placeholder config would replace the real config.json.
+        if Demo.isActive { onCancel(); return }
         var out = cfg
         out.tenant = out.tenant.trimmingCharacters(in: .whitespaces)
         out.userId = out.userId.trimmingCharacters(in: .whitespaces)
