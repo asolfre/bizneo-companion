@@ -105,6 +105,9 @@ copied out of it stays quarantined. Details: `docs/plans/done/release-downloads.
 ## Layout
 
 - `Package.swift` at root (SwiftPM, **no external deps**).
+- `AppIcon.svg` at root — the app icon's source, hand-written. `build_app.sh` renders
+  it with `sips` (macOS's SVG renderer ignores filters) and packs `AppIcon.icns` with
+  `iconutil`. Don't draw SF Symbols into it: Apple's licence forbids them in app icons.
 - `Sources/BizneoCore/` — logic: `TimesheetParser` (HTML parsing), `Calculator`
   (today/week/month/year math), `Models`, `Config`, `BizneoClient`, `ChromeCookies`
   (cookie decrypt), `TimeFmt`.

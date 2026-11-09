@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Bizneo Companion app icon. build_app.sh renders it into AppIcon.icns with sips,
+       whose SVG renderer ignores filters: the shadow is stacked translucent shapes. -->
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#e6eaf0"/>
+    </linearGradient>
+  </defs>
+  <!-- Shadow -->
+  <rect x="100" y="118" width="824" height="824" rx="185" fill="#000" opacity=".05"/>
+  <rect x="100" y="112" width="824" height="824" rx="185" fill="#000" opacity=".07"/>
+  <rect x="100" y="106" width="824" height="824" rx="185" fill="#000" opacity=".09"/>
+  <!-- Body, Apple's macOS icon grid: 824 pt square in a 1024 canvas -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#body)"/>
+  <rect x="102" y="102" width="820" height="820" rx="183" fill="none" stroke="#000" stroke-opacity=".08" stroke-width="4"/>
+  <!-- Today's target: a ring filling up, 78 % done -->
+  <circle cx="512" cy="512" r="290" fill="none" stroke="#dde3ec" stroke-width="76"/>
+  <circle cx="512" cy="512" r="290" fill="none" stroke="#30d158" stroke-width="76" stroke-linecap="round"
+          stroke-dasharray="1421 1822" transform="rotate(-90 512 512)"/>
+  <!-- Clock hands at 10:00 -->
+  <line x1="512" y1="512" x2="373" y2="432" stroke="#1d1d1f" stroke-width="34" stroke-linecap="round"/>
+  <line x1="512" y1="512" x2="512" y2="318" stroke="#1d1d1f" stroke-width="24" stroke-linecap="round"/>
+  <circle cx="512" cy="512" r="28" fill="#ff9f0a"/>
+</svg>
