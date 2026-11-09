@@ -68,6 +68,15 @@ func waitFor(_ what: String, _ done: () -> Bool) {
 
 struct Win { let id: Int; let layer: Int; let frame: CGRect }
 
+/// On a notched screen, an item that doesn't fit right of the notch is hidden, and
+/// a « takes its place in the capture. `r` is in screen points, top-left origin.
+func clearOfNotch(_ r: CGRect) -> Bool {
+    let flipped = CGRect(x: r.minX, y: NSScreen.screens[0].frame.maxY - r.maxY, width: r.width, height: r.height)
+    guard let screen = NSScreen.screens.first(where: { $0.frame.intersects(flipped) }),
+          let right = screen.auxiliaryTopRightArea else { return true }   // no notch
+    return flipped.minX >= right.minX
+}
+
 func windows(_ pid: Int32) -> [Win] {
     let all = CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID) as? [[String: Any]] ?? []
     return all.compactMap { w in
@@ -98,7 +107,11 @@ struct Session {
                 .compactMap { Double($0.trimmingCharacters(in: .whitespaces)) }
             return v.count == 4
         }
-        return CGRect(x: v[0], y: v[1], width: v[2], height: v[3])
+        let r = CGRect(x: v[0], y: v[1], width: v[2], height: v[3])
+        guard clearOfNotch(r) else {
+            fail("the menu bar is full: macOS hides the item behind the notch. Quit a few menu-bar apps (the installed Bizneo Companion counts), then run again")
+        }
+        return r
     }
 
     func row(_ prefix: String) -> String {

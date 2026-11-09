@@ -69,9 +69,14 @@ requests and a made-up "This year" figure.
 - **Command:** `swift run BizneoCompanion --demo <state>`, from the repo root.
 - **States:** `working`, `break`, `not-checked-in`, `checked-out`, `done`, `off`,
   `unknown`. Each is one override on `today` or `chrono`.
-- **Clock:** the snapshot is timestamped with the real time, so the live tick and
-  "Leave by" run normally. `startedAt` is set 2.5 h back, so "since" comes before
-  "Leave by".
+- **Clock:** the snapshot is timestamped 10:00 today, whenever the demo runs, and
+  `startedAt` is set 2.5 h earlier, so "since" comes before "Leave by". `apply`
+  sets `lastRefreshAt` to the real time in the demo, so the live tick still counts.
+  A first version used the real time: a GIF shot at 17:21 read "Leave by 01:21
+  (+1d)", and every re-shoot changed every timestamp.
+- **No version:** the menu header and the Settings footer leave it out in the demo.
+  The demo runs unbundled, so it read `v0.4.1+dev`, and any number would date the
+  images at the next release.
 
 **Isolation.** `Demo.isActive` is a `static let` read from the arguments, so there
 was nothing to thread through the classes.
@@ -164,5 +169,7 @@ image, so it's uploaded by hand in Settings → General → Social preview.
 - **Every `--demo` state was captured and checked by eye on macOS 27.** The full
   clock loop was run through the menu, confirmation included. Clicking Settings →
   Save left `config.json` unchanged (same mtime and md5).
-- **Known limit:** the menu header and Settings footer show `v…+dev`, because the
-  demo runs unbundled.
+- **A full menu bar hides the item.** On the notched MacBook screen, with the
+  installed app running too, macOS hid the demo's item and the captures showed its «
+  overflow control. The script now checks the item sits right of the notch
+  (`NSScreen.auxiliaryTopRightArea`) and stops if not.

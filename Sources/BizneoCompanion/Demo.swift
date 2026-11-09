@@ -14,9 +14,10 @@ enum Demo {
     /// Placeholder account, so Settings looks filled in. Project D is a fixture project.
     static let config = Config(tenant: "acme", userId: "123456", defaultProjectId: "15741264")
 
-    /// The fixtures as of Thu 18 Jun 2026 12:00 (as in `SelfTest`), timestamped `now`
-    /// so the live tick and "Leave by" run on the real clock. nil for an unknown state
-    /// or missing fixtures.
+    /// The fixtures as of Thu 18 Jun 2026 12:00 (as in `SelfTest`), timestamped 10:00
+    /// today: screenshots show the same times whenever they're taken. The live tick
+    /// still runs from the real clock (see `StatusItemController.apply`). nil for an
+    /// unknown state or missing fixtures.
     static func snapshot(_ state: String, dir: String = "Tests/BizneoCompanionTests/Fixtures",
                          now: Date = Date()) -> Snapshot? {
         let base = URL(fileURLWithPath: dir)
@@ -45,10 +46,10 @@ enum Demo {
             pending: pending,
             now: cal.date(from: DateComponents(year: 2026, month: 6, day: 18, hour: 12))!)
         s.year = PeriodStat(label: "This year", officialBalanceMin: 14*60 + 30)   // made up: needs past months
-        s.generatedAt = now
+        s.generatedAt = cal.date(bySettingHour: 10, minute: 0, second: 0, of: now)!
         s.chrono = TimesheetParser.parseChronoState(chronoHTML)
-        // Started 2.5 h ago, so "since" comes before "Leave by".
-        if s.chrono?.status != .stopped { s.chrono?.startedAt = stamp(now.addingTimeInterval(-9000)) }
+        // Started 2.5 h earlier, so "since" comes before "Leave by".
+        if s.chrono?.status != .stopped { s.chrono?.startedAt = stamp(s.generatedAt.addingTimeInterval(-9000)) }
 
         switch state {
         case "not-checked-in":
@@ -67,15 +68,15 @@ enum Demo {
         return s
     }
 
-    /// A clock action, applied in memory only.
-    static func perform(_ action: ChronoAction, on snap: Snapshot, now: Date = Date()) -> Snapshot {
+    /// A clock action, applied in memory only, at the snapshot's own (fixed) time.
+    static func perform(_ action: ChronoAction, on snap: Snapshot) -> Snapshot {
         var s = snap
         switch action {
         case .checkIn, .resume: s.chrono?.status = .working
         case .takeBreak: s.chrono?.status = .paused
         case .checkOut: s.chrono?.status = .stopped
         }
-        if action != .checkOut { s.chrono?.startedAt = stamp(now) }
+        if action != .checkOut { s.chrono?.startedAt = stamp(s.generatedAt) }
         return s
     }
 

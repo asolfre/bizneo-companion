@@ -134,9 +134,11 @@ private struct SettingsView: View {
             Divider()
 
             HStack {
-                Text("v\(AppInfo.displayVersion)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if !Demo.isActive {   // see rebuildMenu: screenshots outlive the version
+                    Text("v\(AppInfo.displayVersion)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 Spacer()
                 Button("Cancel", action: onCancel)
                     .keyboardShortcut(.cancelAction)

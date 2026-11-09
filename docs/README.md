@@ -24,6 +24,11 @@ both at the end.
 - Images come out at the scale of the display holding the active menu bar, and the
   script stops unless that's a Retina one: click on that screen first. The README
   sets each width in points, so the 2x images show at the right size.
+- On a notched screen, a full menu bar hides the demo's item behind the notch. The
+  script stops if so: quit a few menu-bar apps for the run, the installed Bizneo
+  Companion included.
+- Images don't depend on when they're taken: the demo's clock is fixed at 10:00 and
+  its menus show no version, so a re-shoot only changes what the UI changed.
 - **`archive/`** keeps earlier image sets, one folder per run (`2026-11-09-1x/` was
   the first, shot on a 1x display).
 
@@ -42,4 +47,6 @@ both at the end.
 on the spot: `working`, `break`, `not-checked-in`, `checked-out`, `done`, `off` or
 `unknown`. Nothing leaves the process: clock actions only change the state in memory,
 **Refresh now** does nothing, Settings reads neither Chrome nor the Keychain and never
-saves, and the last-used project is neither read nor written.
+saves, and the last-used project is neither read nor written. The clock reads 10:00
+and the version is left out of the menu and Settings, so screenshots outlive both the
+time of day and the next release.

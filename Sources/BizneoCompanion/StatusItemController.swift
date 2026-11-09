@@ -93,7 +93,9 @@ final class StatusItemController: NSObject {
     private var latest: Snapshot?
     private func apply(_ snap: Snapshot) {
         latest = snap
-        lastRefreshAt = snap.generatedAt
+        // The demo's clock is fixed at 10:00 (see `Demo.snapshot`); its live tick
+        // counts from now.
+        lastRefreshAt = Demo.isActive ? Date() : snap.generatedAt
         refreshTitle()
         rebuildMenu(snapshot: snap)
         startOrStopDisplayTimer()
@@ -362,8 +364,10 @@ final class StatusItemController: NSObject {
             }
         }
 
+        // The demo leaves the version out, so README screenshots survive a release.
+        let title = Demo.isActive ? AppInfo.name : "\(AppInfo.name) v\(AppInfo.displayVersion)"
         if let s = snapshot {
-            menu.addItem(header("\(AppInfo.name) v\(AppInfo.displayVersion)"))
+            menu.addItem(header(title))
             // The figures below are the last good ones; say why the icon is ⚠︎
             // (most often an expired session) instead of only in its tooltip.
             if let err = lastError {
@@ -395,7 +399,7 @@ final class StatusItemController: NSObject {
             menu.addItem(.separator())
             menu.addItem(info((lastError == nil ? "Updated " : "Last successful update ") + timeString(s.generatedAt)))
         } else if let err = lastError {
-            menu.addItem(header("\(AppInfo.name) v\(AppInfo.displayVersion)"))
+            menu.addItem(header(title))
             addError(err)
             menu.addItem(.separator())
         } else {
