@@ -7,6 +7,7 @@ import BizneoCore
 //   • --probe / --once   → fetch once, print a text report, exit (for validation from Terminal)
 //   • --dump             → (with --probe) also write raw HTML of each endpoint to /tmp for debugging
 //   • --version / -v     → print the version and exit
+//   • --demo [state]     → run the menu-bar agent on the test fixtures (see Demo.swift)
 
 let args = Set(CommandLine.arguments.dropFirst())
 
@@ -25,6 +26,17 @@ if args.contains("--probe") || args.contains("--once") {
     Probe.run(dump: args.contains("--dump"))
     exit(0)
 }
+
+let demo: Snapshot? = {
+    guard let i = CommandLine.arguments.firstIndex(of: "--demo") else { return nil }
+    let state = CommandLine.arguments.dropFirst(i + 1).first ?? "working"
+    guard let s = Demo.snapshot(state) else {
+        print("usage: BizneoCompanion --demo [\(Demo.states.joined(separator: "|"))]")
+        print("Run it from the repo root: it reads Tests/BizneoCompanionTests/Fixtures.")
+        exit(2)
+    }
+    return s
+}()
 
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)   // menu-bar only, no Dock icon (equivalent to LSUIElement)
@@ -48,9 +60,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var controller: StatusItemController?
     func applicationDidFinishLaunching(_ notification: Notification) {
         MainActor.assumeIsolated {
-            let c = StatusItemController(config: Config.load())
+            let c = StatusItemController(config: demo == nil ? Config.load() : Demo.config)
             self.controller = c
-            c.start()
+            c.start(demo: demo)
         }
     }
 

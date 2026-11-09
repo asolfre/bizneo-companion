@@ -487,6 +487,27 @@ enum SelfTest {
         check((try? ChromeCookies.profiles(chromeDir: chromeDir.appendingPathComponent("missing")))?.isEmpty == true,
               "no Chrome directory → none found")
 
+        print("demo mode:")
+        let demoStates: [(String, BarState)] = [
+            ("working", .working), ("break", .onBreak), ("not-checked-in", .notCheckedIn),
+            ("checked-out", .checkedOutEarly), ("done", .doneForToday), ("off", .offDuty), ("unknown", .unknown),
+        ]
+        check(demoStates.map(\.0) == Demo.states, "every demo state is covered", Demo.states)
+        for (name, want) in demoStates {
+            check(Demo.snapshot(name, dir: dir)?.barState == want, "--demo \(name) → \(want.rawValue)",
+                  Demo.snapshot(name, dir: dir)?.barState as Any)
+        }
+        check(Demo.snapshot("nope", dir: dir) == nil, "unknown demo state → nil")
+        // The GIF's sequence must end where it started, so it loops.
+        if var s = Demo.snapshot("not-checked-in", dir: dir) {
+            var seen: [BarState] = []
+            for a: ChronoAction in [checkIn, .takeBreak, .resume, .checkOut] {
+                s = Demo.perform(a, on: s)
+                seen.append(s.barState)
+            }
+            check(seen == [.working, .onBreak, .working, .notCheckedIn], "demo clock actions loop back to Check in", seen)
+        }
+
         print("connection check:")
         check((try? BizneoClient.connectionCheck(hub: hub, logs: logs)) == .working,
               "hub_chrono + my_logs fixtures pass", (try? BizneoClient.connectionCheck(hub: hub, logs: logs)) as Any)
