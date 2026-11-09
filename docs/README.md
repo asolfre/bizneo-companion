@@ -16,13 +16,16 @@ swift build && swift docs/screenshots.swift
 It opens the demo's menus and picks items through Accessibility (no keystrokes) and
 captures windows by id, so nothing else on screen ends up in an image. Menus are shot
 over a plain window in GitHub's page colour, since their glass has nothing to blur
-otherwise. It also switches the system appearance to light and dark for about a
-minute, then restores it.
+otherwise. For about a minute and a half it switches the system appearance to light
+and dark and parks the pointer in a corner, so it can't highlight a row; it restores
+both at the end.
 
 - The terminal needs **Accessibility** and **Screen Recording**.
-- Images come out at the scale of the display holding the active menu bar, so use a
-  Retina one for sharp images. The README sets each width in points, so 1x and 2x
-  captures both fit.
+- Images come out at the scale of the display holding the active menu bar, and the
+  script stops unless that's a Retina one: click on that screen first. The README
+  sets each width in points, so the 2x images show at the right size.
+- **`archive/`** keeps earlier image sets, one folder per run (`2026-11-09-1x/` was
+  the first, shot on a 1x display).
 
 | File | Shows |
 |---|---|

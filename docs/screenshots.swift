@@ -6,8 +6,9 @@
 // The terminal needs Accessibility and Screen Recording. Menus are opened and items
 // picked through Accessibility, never with keystrokes, and windows are captured by
 // id, so nothing else on screen ends up in an image. The system appearance flips to
-// light and dark and is restored at the end. Images come out at the scale of the
-// display holding the active menu bar: use a Retina one.
+// light and dark, and the pointer waits in a corner; both are restored at the end.
+// Images come out at the scale of the display holding the active menu bar, and the
+// script stops unless that's a Retina one.
 import AppKit
 import ImageIO
 import UniformTypeIdentifiers
@@ -38,11 +39,23 @@ let wasDark = osa("\(appearance) get dark mode") == "true"
 func setDark(_ on: Bool) { osa("\(appearance) set dark mode to \(on)"); pause(1.5) }
 
 var demo: Process?
+/// Where the pointer was, to put it back: see `park(near:)`.
+let pointer = CGEvent(source: nil)?.location ?? .zero
 func fail(_ message: String) -> Never {
     print("✗ \(message)")
     demo?.terminate()
     setDark(wasDark)
+    CGWarpMouseCursorPosition(pointer)
     exit(1)
+}
+
+/// A pointer resting where a menu opens highlights a row, so move it to the bottom-left
+/// corner of the display at `p` while the script runs.
+func park(near p: CGPoint) {
+    var display: CGDirectDisplayID = 0, count: UInt32 = 0
+    CGGetDisplaysWithPoint(p, 1, &display, &count)
+    let b = CGDisplayBounds(display)
+    CGWarpMouseCursorPosition(CGPoint(x: b.minX + 40, y: b.maxY - 40))
 }
 
 func waitFor(_ what: String, _ done: () -> Bool) {
@@ -171,6 +184,14 @@ func save(_ img: CGImage, _ name: String) {
 
 // MARK: - Stills, in both appearances
 
+// The status item opens on the active menu bar's display. A 1x one gives images that
+// look soft on Retina screens, so stop before anything changes.
+let probe = launch("working"), probeBar = probe.itemFrame
+guard CGFloat(shot(probeBar).width) >= 2 * probeBar.width else {
+    fail("the menu bar is active on a 1x display: click on a Retina screen, then run again")
+}
+park(near: probeBar.origin)
+
 for (dark, suffix) in [(false, "light"), (true, "dark")] {
     setDark(dark)
     var s = launch("working")
@@ -220,7 +241,9 @@ for row in ["Check in ·", "Take break", "Resume", "Check out"] {
 }
 demo?.terminate()
 
-// Composed at 1x on white, like the backdrop, so the frames are seamless.
+// Composed on white, like the backdrop, so the frames are seamless; at the capture's
+// scale, so a Retina run gives a sharp GIF.
+let scale = CGFloat(frames[0].bar.width) / frames[0].barAt.width
 let barTop = frames.map(\.barAt.minY).min()!
 var area = frames.reduce(CGRect.null) { $0.union($1.barAt).union($1.overAt ?? .null) }.insetBy(dx: -12, dy: -12)
 area = CGRect(x: area.minX, y: barTop, width: area.width, height: area.maxY - barTop).integral
@@ -228,9 +251,10 @@ let gif = CGImageDestinationCreateWithURL(URL(fileURLWithPath: docs + "demo.gif"
                                           UTType.gif.identifier as CFString, frames.count, nil)!
 CGImageDestinationSetProperties(gif, [kCGImagePropertyGIFDictionary as String: [kCGImagePropertyGIFLoopCount as String: 0]] as CFDictionary)
 for f in frames {
-    let ctx = CGContext(data: nil, width: Int(area.width), height: Int(area.height), bitsPerComponent: 8,
-                        bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+    let ctx = CGContext(data: nil, width: Int(area.width * scale), height: Int(area.height * scale),
+                        bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
                         bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+    ctx.scaleBy(x: scale, y: scale)   // from here on, draw in points
     ctx.interpolationQuality = .high
     ctx.setFillColor(.white)
     ctx.fill(CGRect(origin: .zero, size: area.size))
@@ -251,6 +275,7 @@ for f in frames {
                                [kCGImagePropertyGIFDictionary as String: [kCGImagePropertyGIFDelayTime as String: f.delay]] as CFDictionary)
 }
 CGImageDestinationFinalize(gif)
-print("✓ docs/demo.gif  \(Int(area.width))×\(Int(area.height)), \(frames.count) frames")
+print("✓ docs/demo.gif  \(Int(area.width * scale))×\(Int(area.height * scale)), \(frames.count) frames")
 
 setDark(wasDark)
+CGWarpMouseCursorPosition(pointer)

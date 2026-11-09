@@ -115,8 +115,16 @@ image. `docs/README.md` lists the files.
 - **README:** PNGs in light/dark pairs inside `<picture>`, with each width in
   points, so a 2x re-shoot fits without edits.
 - **GIF:** `demo.gif` is a 10-frame storyboard (Check in → break → resume → check
-  out → confirm → back to Check in), composed at 1x on white and written with
-  ImageIO. It's 110 KB, with no ffmpeg.
+  out → confirm → back to Check in), composed on white at the capture's scale and
+  written with ImageIO. It's about 300 KB at 2x, with no ffmpeg.
+- **Retina only.** The first run was shot on a 1x external display: soft on Retina
+  screens. The script now checks the scale of the status item's capture and stops
+  before changing anything unless it's 2x. That set is kept in
+  `docs/archive/2026-11-09-1x/`.
+- **The pointer.** On the re-run the pointer happened to rest where the menu opens,
+  and the light hero image came out with **Quit** highlighted. The script now moves
+  the pointer to the bottom-left corner of that display for the run and puts it back
+  at the end.
 
 ## Rejected design
 
@@ -143,8 +151,5 @@ image. `docs/README.md` lists the files.
 - **Every `--demo` state was captured and checked by eye on macOS 27.** The full
   clock loop was run through the menu, confirmation included. Clicking Settings →
   Save left `config.json` unchanged (same mtime and md5).
-- **Known limits:**
-  - The images in this branch were captured on a non-Retina display (1x), so
-    they're slightly soft on Retina screens. Re-running the script with the menu
-    bar on a Retina display gives 2x without README edits.
-  - The menu header and Settings footer show `v…+dev`: the demo runs unbundled.
+- **Known limit:** the menu header and Settings footer show `v…+dev`, because the
+  demo runs unbundled.
