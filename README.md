@@ -157,7 +157,7 @@ lead to. A full round, all from the menu:
 <img alt="Check in, take a break, resume, then check out and confirm, back to the orange Check in" src="docs/demo.gif" width="633">
 
 Before you clock in, the quick check-in uses your last project (or the default one),
-and **Check in ▸** lists them all:
+and the **Check in** submenu lists them all:
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/not-checked-in-dark.png">
@@ -181,7 +181,7 @@ toggle, which is a system login item rather than a config field; for that to sur
 reliably, keep `BizneoCompanion.app` in `/Applications` (`SMAppService` registers the
 app at whatever path it's running from). If macOS has blocked it, the toggle offers
 **Approve in System Settings…**. Changing the default project also replaces the one
-last picked from **Check in ▸**.
+last picked from the **Check in** submenu.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/settings-dark.png">

@@ -327,7 +327,7 @@ private struct SettingsView: View {
                 ForEach(projects, id: \.id) { Text($0.name).tag(String?.some($0.id)) }
             }
         }
-        Text("Changing this replaces the project last picked from \"Check in ▸\".")
+        Text("Changing this replaces the project last picked from the \"Check in\" submenu.")
             .font(.caption)
             .foregroundStyle(.secondary)
     }
