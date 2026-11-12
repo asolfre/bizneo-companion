@@ -12,5 +12,8 @@ captures/
 # macOS
 .DS_Store
 
+# Earlier README image sets, kept locally only
+docs/archive/
+
 # IDE
 .idea/

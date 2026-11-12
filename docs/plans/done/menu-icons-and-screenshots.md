@@ -124,8 +124,8 @@ image. `docs/README.md` lists the files.
   written with ImageIO. It's about 300 KB at 2x, with no ffmpeg.
 - **Retina only.** The first run was shot on a 1x external display: soft on Retina
   screens. The script now checks the scale of the status item's capture and stops
-  before changing anything unless it's 2x. That set is kept in
-  `docs/archive/2026-11-09-1x/`.
+  before changing anything unless it's 2x. That set is kept locally in the
+  git-ignored `docs/archive/`.
 - **The pointer.** On the re-run the pointer happened to rest where the menu opens,
   and the light hero image came out with **Quit** highlighted. The script now moves
   the pointer to the bottom-left corner of that display for the run and puts it back

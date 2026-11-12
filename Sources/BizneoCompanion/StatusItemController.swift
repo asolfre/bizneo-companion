@@ -527,7 +527,8 @@ final class StatusItemController: NSObject {
                                    #selector(checkInQuick), enabled: !busy, icon: workingIcon)
             menu.addItem(quick)
             // Full picker.
-            let checkIn = NSMenuItem(title: "Check in (\(modeLabel)) ▸", action: nil, keyEquivalent: "")
+            // AppKit draws the submenu arrow itself.
+            let checkIn = NSMenuItem(title: "Check in (\(modeLabel))", action: nil, keyEquivalent: "")
             checkIn.isEnabled = !busy
             checkIn.image = workingIcon
             let sub = NSMenu()

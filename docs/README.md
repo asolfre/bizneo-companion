@@ -29,8 +29,8 @@ both at the end.
   Companion included.
 - Images don't depend on when they're taken: the demo's clock is fixed at 10:00 and
   its menus show no version, so a re-shoot only changes what the UI changed.
-- **`archive/`** keeps earlier image sets, one folder per run (`2026-11-09-1x/` was
-  the first, shot on a 1x display).
+- **`archive/`** (git-ignored, local only) keeps earlier image sets, one folder per
+  run. Copy the current images there before a re-shoot if you want to keep them.
 
 | File | Shows |
 |---|---|
