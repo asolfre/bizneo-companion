@@ -20,7 +20,9 @@ HTML endpoints**, authenticated by reusing the Chrome session cookie.
   `swift run BizneoCompanion --demo <state>` from the repo root draws the menu from
   the fixtures, in any clock state, with clock actions faked in memory. After a UI
   change, regenerate the README images with `swift docs/screenshots.swift` (it
-  briefly switches the system appearance; see `docs/README.md`).
+  briefly switches the system appearance; see `docs/README.md`). Drive the demo
+  through Accessibility (click, `AXSelected`, `AXCancel` on its own process), never
+  System Events keystrokes: those go to whichever app is in front.
 - **Don't build with the Command Line Tools alone.** Since CLT 27.0 the macOS 27
   SDK's SwiftUI needs the `SwiftUIMacros` compiler plugin, which only Xcode ships:
   every `@State` fails with "plugin for module 'SwiftUIMacros' not found", and
@@ -38,8 +40,15 @@ HTML endpoints**, authenticated by reusing the Chrome session cookie.
   `BizneoCompanion.app` at repo root (`LSUIElement` agent, no Dock icon).
   `UNIVERSAL=1 ./build_app.sh` builds arm64 + x86_64 (CI and releases do). Nothing
   runs the x86_64 slice: CI only checks it's there.
-- Repo lives under Google Drive; pass `BUILD_PATH=/tmp/bc` to keep `.build` off the
-  synced folder (e.g. `BUILD_PATH=/tmp/bc swift build`).
+- Repo lives under Google Drive: keep build output off the synced folder with
+  `--scratch-path /tmp/bc` on `swift build`/`test`/`run`. SwiftPM ignores
+  `BUILD_PATH`; only `build_app.sh` reads it (`BUILD_PATH=/tmp/bc ./build_app.sh`).
+  `swift test` needs the flag anyway: inside the Drive folder it fails code-signing
+  the test bundle.
+- Drive leaves conflict copies named `<name> 2.<ext>`, sometimes empty, when a script
+  rewrites files it's syncing (an empty `docs/demo 2.gif` after a re-shoot). Check
+  `git status` after regenerating images; delete them, never commit them. A
+  `git clone` of this checkout once hung for 30+ minutes; a retry worked.
 - **Testing a build on recent macOS (seen on 27):** reading Chrome's data needs a
   Files & Folders permission, and macOS ties it to one build (the app is ad-hoc
   signed). A test build won't inherit the installed app's grant, and toggling it on
@@ -100,7 +109,9 @@ by hand), then mark the zip and DMG as downloaded
 (`xattr -w com.apple.quarantine "0083;$(printf %x $(date +%s));Safari;" <file>`) and
 install from each. On macOS 27 a quarantined, unsigned DMG still opens; the app
 copied out of it stays quarantined. Details: `docs/plans/done/release-downloads.md`
-→ Verify.
+→ Verify. Check the installed app's icon from a copy outside `/var/folders`: Finder
+and `NSWorkspace.icon(forFile:)` show a generic document icon for apps in temp
+folders, even after `lsregister`.
 
 ## Layout
 
